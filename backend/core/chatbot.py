@@ -1,9 +1,11 @@
 """
 智能对话模块 (Module 3)
-基于RAG的智能客服机器人
+基于增强RAG的智能客服机器人
+支持元数据过滤、混合检索、重排序
 """
 from services.llm_service import get_llm_service
 from services.knowledge_base import get_knowledge_base
+from services.enhanced_knowledge_base import get_enhanced_knowledge_base
 from typing import Dict, List
 import logging
 import json
@@ -11,12 +13,19 @@ import json
 logger = logging.getLogger(__name__)
 
 class DJIChatbot:
-    """大疆产品智能客服机器人"""
+    """大疆产品智能客服机器人（增强版）"""
     
-    def __init__(self):
+    def __init__(self, use_enhanced_rag: bool = True):
         self.llm = get_llm_service()
-        self.kb = get_knowledge_base()
+        # 使用增强的RAG系统
+        if use_enhanced_rag:
+            self.kb = get_enhanced_knowledge_base()
+            logger.info("使用增强RAG系统（元数据过滤+混合检索+重排序）")
+        else:
+            self.kb = get_knowledge_base()
+            logger.info("使用基础RAG系统")
         self.conversation_memory = {}  # 简单的内存存储（生产环境应使用数据库）
+        self.use_enhanced = use_enhanced_rag
     
     def chat(self, customer_id: int, message: str, language: str = 'zh-cn') -> Dict:
         """
@@ -40,8 +49,18 @@ class DJIChatbot:
         product_tag = self._detect_product(message)
         logger.info(f"检测到产品: {product_tag}")
         
-        # 2. RAG检索（增加top_k获取更多上下文）
-        retrieved_docs = self.kb.search(message, product_filter=product_tag, top_k=5)
+        # 2. RAG检索（使用增强功能）
+        if self.use_enhanced:
+            retrieved_docs = self.kb.search(
+                message, 
+                product_filter=product_tag,
+                top_k=5,
+                use_hybrid=True,  # 混合检索 (BM25 + Vector)
+                use_rerank=True,  # 重排序
+                similarity_threshold=0.3
+            )
+        else:
+            retrieved_docs = self.kb.search(message, product_filter=product_tag, top_k=5)
         
         # 3. 构建上下文
         context = self._build_context(retrieved_docs)

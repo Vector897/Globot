@@ -61,3 +61,7 @@ Thumbs.db
 # Project specific
 *.pyc
 backend/*.log
+
+# Node.js / Frontend
+node_modules/
+frontend/node_modules/

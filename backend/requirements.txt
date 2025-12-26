@@ -1,8 +1,6 @@
 fastapi==0.104.1
 uvicorn[standard]==0.24.0
-pyd
-
-antic==2.5.0
+pydantic==2.5.0
 pydantic-settings==2.1.0
 
 # 数据库
@@ -16,6 +14,9 @@ langchain-community==0.0.13
 chromadb==0.4.22
 sentence-transformers==2.3.1
 
+# RAG Enhancement
+rank-bm25>=0.2.2
+
 # 工具
 python-dotenv==1.0.0
 requests==2.31.0
@@ -28,3 +29,4 @@ python-docx==1.1.0
 
 # Ollama客户端
 ollama==0.1.6
+google-generativeai>=0.3.0

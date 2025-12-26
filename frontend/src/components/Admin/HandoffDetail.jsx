@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Card, Timeline, Button, Tag, Spin, Empty, message as antMessage,
-  Descriptions, Input, Space, Divider
+  Descriptions, Input, Space, Divider, Modal
 } from 'antd';
 import {
   ArrowLeftOutlined, RobotOutlined, UserOutlined, SendOutlined,
@@ -24,6 +24,8 @@ const HandoffDetail = () => {
   const [customer, setCustomer] = useState(null);
   const [replyContent, setReplyContent] = useState('');
   const [agentName, setAgentName] = useState('');
+  const [takeoverModalVisible, setTakeoverModalVisible] = useState(false);
+  const [tempAgentName, setTempAgentName] = useState('');
 
   const fetchHandoffDetail = async () => {
     try {
@@ -84,24 +86,48 @@ const HandoffDetail = () => {
     }
   };
 
+  const showTakeoverModal = () => {
+    setTempAgentName(agentName || '销售-李四');
+    setTakeoverModalVisible(true);
+  };
+
   const handleTakeOver = async () => {
-    const name = prompt('请输入您的姓名', agentName || '销售-李四');
-    if (!name) return;
+    if (!tempAgentName.trim()) {
+      antMessage.warning('请输入您的姓名');
+      return;
+    }
 
     try {
+      setTakeoverModalVisible(false);
       await chatAPI.updateHandoffStatus(handoffId, {
         status: 'processing',
-        agent_name: name
+        agent_name: tempAgentName
       });
       
-      setAgentName(name);
-      antMessage.success(`${name} 已接手对话`);
+      setAgentName(tempAgentName);
+      antMessage.success(`${tempAgentName} 已接手对话`);
+      
+      // 发送浏览器通知
+      if ('Notification' in window && Notification.permission === 'granted') {
+        new Notification('转人工已接手', {
+          body: `${tempAgentName} 已接手对话`,
+          icon: '/logo.png'
+        });
+      }
+      
       await fetchHandoffDetail();
     } catch (error) {
       console.error('接手失败:', error);
       antMessage.error('接手失败');
     }
   };
+
+  // 请求通知权限
+  useEffect(() => {
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+  }, []);
 
   const handleComplete = async () => {
     try {
@@ -188,7 +214,7 @@ const HandoffDetail = () => {
               <Button
                 type="primary"
                 icon={<PlayCircleOutlined />}
-                onClick={handleTakeOver}
+                onClick={showTakeoverModal}
               >
                 接手对话
               </Button>
@@ -273,6 +299,24 @@ const HandoffDetail = () => {
           </Card>
         </>
       )}
+
+      {/* 接手对话弹窗 */}
+      <Modal
+        title="接手对话"
+        open={takeoverModalVisible}
+        onOk={handleTakeOver}
+        onCancel={() => setTakeoverModalVisible(false)}
+        okText="确认接手"
+        cancelText="取消"
+      >
+        <Input
+          placeholder="请输入您的姓名"
+          value={tempAgentName}
+          onChange={(e) => setTempAgentName(e.target.value)}
+          onPressEnter={handleTakeOver}
+          autoFocus
+        />
+      </Modal>
     </div>
   );
 };

@@ -3,6 +3,7 @@ import { Table, Tag, Button, Space, message as antMessage, Badge, Card } from 'a
 import { EyeOutlined, ReloadOutlined, ClockCircleOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { chatAPI } from '../../services/api';
+import HandoffStats from './HandoffStats';
 import './HandoffQueue.css';
 
 const HandoffQueue = () => {
@@ -156,6 +157,9 @@ const HandoffQueue = () => {
 
   return (
     <div className="handoff-queue" style={{ padding: 24 }}>
+      {/* 统计面板 */}
+      <HandoffStats />
+      
       <Card>
         <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <Space size="large">
