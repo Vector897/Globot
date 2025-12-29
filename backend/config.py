@@ -18,6 +18,23 @@ class Settings(BaseSettings):
     upload_dir: str = "./data/uploads"
     max_upload_size_mb: int = 50
     
+    # ===== Telegram Bot 配置 =====
+    telegram_bot_token: str = ""  # 从 @BotFather 获取的 token
+    telegram_webhook_url: str = ""  # 你的服务器 webhook URL，例如：https://yourdomain.com/webhook/telegram
+    
+    # ===== Azure OpenAI 配置（Imagine Cup 版本）=====
+    # 取消注释并填写以启用 Azure AI 服务
+    # azure_openai_endpoint: str = ""
+    # azure_openai_key: str = ""
+    # azure_openai_api_version: str = "2024-02-01"
+    # azure_openai_chat_deployment: str = "gpt-4"
+    # azure_openai_embedding_deployment: str = "text-embedding-ada-002"
+    
+    # ===== Azure AI Search 配置 =====
+    # azure_search_endpoint: str = ""
+    # azure_search_key: str = ""
+    # azure_search_index_name: str = "dji-knowledge-base"
+    
     # 系统配置
     log_level: str = "INFO"
     debug: bool = True

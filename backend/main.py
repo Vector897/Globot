@@ -1,14 +1,15 @@
 """
 FastAPI主应用
 """
-from fastapi import FastAPI, Depends, HTTPException, BackgroundTasks
+from fastapi import FastAPI, Depends, HTTPException, BackgroundTasks, Request
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from datetime import datetime
 import uvicorn
 import logging
+import hashlib
 
 # 导入模块
 from database import get_db, Base, engine
@@ -18,6 +19,7 @@ from core.classifier import get_classifier
 from core.handoff_manager import get_handoff_manager
 from api.v2.azure_routes import router as azure_router
 from api.v2.demo_routes import router as demo_router
+from services.telegram_service import get_telegram_service
 
 # 配置日志
 logging.basicConfig(level=logging.INFO)
@@ -50,6 +52,7 @@ try:
     chatbot = get_chatbot()
     classifier = get_classifier()
     handoff_manager = get_handoff_manager()
+    telegram_service = get_telegram_service()
     logger.info("核心模块初始化成功")
 except Exception as e:
     logger.error(f"核心模块初始化失败: {e}")
@@ -57,6 +60,7 @@ except Exception as e:
     chatbot = None
     classifier = None
     handoff_manager = None
+    telegram_service = None
 
 
 # ========== 数据模型 ==========
@@ -94,6 +98,12 @@ class UpdateHandoffStatusRequest(BaseModel):
     status: str  # pending/processing/completed
     agent_name: Optional[str] = None
 
+class TelegramWebhookUpdate(BaseModel):
+    """Telegram Webhook 更新"""
+    update_id: int
+    message: Optional[Dict[str, Any]] = None
+    edited_message: Optional[Dict[str, Any]] = None
+
 # ========== API路由 ==========
 
 @app.get("/")
@@ -102,8 +112,310 @@ def read_root():
     return {
         "message": "DJI Sales AI Assistant API",
         "version": "0.1.0",
-        "status": "running"
+        "status": "running",
+        "telegram_bot": "enabled" if telegram_service else "disabled"
     }
+
+# ========== Telegram Bot 相关API ==========
+
+@app.post("/webhook/telegram")
+async def telegram_webhook(
+    request: Request,
+    bg_tasks: BackgroundTasks,
+    db: Session = Depends(get_db)
+):
+    """
+    Telegram Webhook 接收端点
+    
+    接收 Telegram 发送的更新并处理消息
+    """
+    try:
+        # 获取原始数据
+        data = await request.json()
+        logger.info(f"收到 Telegram 更新: {data}")
+        
+        # 提取消息
+        message = data.get("message") or data.get("edited_message")
+        
+        if not message:
+            return {"ok": True, "message": "No message to process"}
+        
+        # 提取消息内容
+        text = message.get("text", "").strip()
+        chat_id = message.get("chat", {}).get("id")
+        message_id = message.get("message_id")
+        
+        if not text or not chat_id:
+            return {"ok": True, "message": "Invalid message format"}
+        
+        # 忽略命令（以 / 开头）
+        if text.startswith("/"):
+            await handle_telegram_command(text, chat_id, message_id, db)
+            return {"ok": True}
+        
+        # 提取用户信息
+        user_info = telegram_service.extract_user_info(message)
+        
+        # 发送 "正在输入" 状态
+        telegram_service.send_typing_action(chat_id)
+        
+        # 获取或创建客户
+        customer = await get_or_create_customer_from_telegram(user_info, db)
+        
+        # 获取或创建活跃会话
+        active_conv = db.query(Conversation).filter(
+            Conversation.customer_id == customer.id,
+            Conversation.status == ConversationStatus.ACTIVE
+        ).first()
+        
+        if not active_conv:
+            active_conv = Conversation(
+                customer_id=customer.id,
+                status=ConversationStatus.ACTIVE,
+                started_at=datetime.now()
+            )
+            db.add(active_conv)
+            db.commit()
+            db.refresh(active_conv)
+        
+        # 保存客户消息
+        customer_msg = Message(
+            conversation_id=active_conv.id,
+            content=text,
+            sender=MessageSender.CUSTOMER,
+            language=user_info.get("language_code", "en"),
+            created_at=datetime.now()
+        )
+        db.add(customer_msg)
+        db.commit()
+        
+        # 调用聊天机器人
+        response = chatbot.chat(
+            customer_id=customer.id,
+            message=text,
+            language=user_info.get("language_code", "en")
+        )
+        
+        # 保存AI消息
+        ai_msg = Message(
+            conversation_id=active_conv.id,
+            content=response['answer'],
+            sender=MessageSender.AI,
+            language=user_info.get("language_code", "en"),
+            ai_confidence=response['confidence'],
+            created_at=datetime.now()
+        )
+        db.add(ai_msg)
+        
+        # 更新会话统计
+        active_conv.message_count += 2
+        active_conv.avg_confidence = response['confidence']
+        
+        # 如果需要转人工
+        if response['should_handoff']:
+            handoff_manager.create_handoff(
+                db,
+                active_conv.id,
+                reason='low_confidence' if response['confidence'] < 0.7 else 'customer_request'
+            )
+            active_conv.status = ConversationStatus.HANDOFF
+        
+        db.commit()
+        
+        # 格式化回复并发送到 Telegram
+        formatted_answer = telegram_service.format_message_for_telegram(
+            response['answer'],
+            response['confidence']
+        )
+        
+        telegram_service.send_message(
+            chat_id=chat_id,
+            text=formatted_answer,
+            reply_to_message_id=message_id
+        )
+        
+        # 异步触发客户分类
+        if active_conv.message_count >= 4:
+            bg_tasks.add_task(classify_customer_bg, customer.id, db)
+        
+        return {"ok": True, "conversation_id": active_conv.id}
+        
+    except Exception as e:
+        logger.error(f"处理 Telegram webhook 失败: {e}", exc_info=True)
+        return {"ok": False, "error": str(e)}
+
+async def handle_telegram_command(
+    command: str,
+    chat_id: int,
+    message_id: int,
+    db: Session
+):
+    """
+    处理 Telegram 命令
+    
+    Args:
+        command: 命令文本（如 /start）
+        chat_id: Telegram chat ID
+        message_id: 消息 ID
+        db: 数据库会话
+    """
+    if command.startswith("/start"):
+        welcome_text = """
+👋 欢迎使用 DJI 智能销售助理！
+
+我可以帮您：
+✅ 了解 DJI 无人机产品
+✅ 解答技术问题
+✅ 提供购买建议
+✅ 连接专业销售团队
+
+直接发送您的问题，我会立即回复！
+
+---
+🤖 Powered by Azure AI
+        """
+        telegram_service.send_message(
+            chat_id=chat_id,
+            text=welcome_text.strip()
+        )
+    
+    elif command.startswith("/help"):
+        help_text = """
+📖 使用帮助
+
+**常见问题：**
+• M30T 续航时间是多少？
+• Dock 3 有什么特点？
+• 如何选择合适的无人机？
+
+**命令列表：**
+/start - 开始使用
+/help - 查看帮助
+/human - 转人工客服
+
+有任何问题直接发送消息即可！
+        """
+        telegram_service.send_message(
+            chat_id=chat_id,
+            text=help_text.strip()
+        )
+    
+    elif command.startswith("/human"):
+        # 转人工
+        telegram_service.send_message(
+            chat_id=chat_id,
+            text="已为您转接人工客服，请稍等，我们的销售顾问会尽快回复您。⏰"
+        )
+
+async def get_or_create_customer_from_telegram(
+    user_info: Dict[str, str],
+    db: Session
+) -> Customer:
+    """
+    从 Telegram 用户信息获取或创建客户
+    
+    Args:
+        user_info: Telegram 用户信息
+        db: 数据库会话
+        
+    Returns:
+        Customer 对象
+    """
+    telegram_id = user_info["telegram_id"]
+    
+    # 使用 telegram_id 作为 email 的唯一标识（临时方案）
+    # 生产环境应该使用独立的 telegram_id 字段
+    email = f"telegram_{telegram_id}@temp.dji.com"
+    
+    # 查找现有客户
+    customer = db.query(Customer).filter(Customer.email == email).first()
+    
+    if customer:
+        # 更新客户信息（如果用户名改变）
+        if customer.name != user_info["full_name"]:
+            customer.name = user_info["full_name"]
+            customer.updated_at = datetime.now()
+            db.commit()
+        return customer
+    
+    # 创建新客户
+    new_customer = Customer(
+        name=user_info["full_name"],
+        email=email,
+        company=f"Telegram User (@{user_info['username']})" if user_info['username'] else "Telegram User",
+        phone=telegram_id,  # 临时存储 telegram_id
+        language=user_info["language_code"],
+        category=CustomerCategory.NORMAL,
+        priority_score=3,
+        created_at=datetime.now()
+    )
+    
+    db.add(new_customer)
+    db.commit()
+    db.refresh(new_customer)
+    
+    logger.info(f"创建新客户: {new_customer.name} (Telegram ID: {telegram_id})")
+    
+    return new_customer
+
+@app.post("/api/telegram/set-webhook")
+def set_telegram_webhook(webhook_url: Optional[str] = None):
+    """
+    设置 Telegram Webhook
+    
+    Args:
+        webhook_url: Webhook URL（可选，默认使用配置中的 URL）
+    """
+    if not telegram_service:
+        raise HTTPException(status_code=503, detail="Telegram service not available")
+    
+    try:
+        result = telegram_service.set_webhook(webhook_url)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/telegram/webhook-info")
+def get_telegram_webhook_info():
+    """
+    获取 Telegram Webhook 信息
+    """
+    if not telegram_service:
+        raise HTTPException(status_code=503, detail="Telegram service not available")
+    
+    try:
+        result = telegram_service.get_webhook_info()
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.delete("/api/telegram/webhook")
+def delete_telegram_webhook():
+    """
+    删除 Telegram Webhook
+    """
+    if not telegram_service:
+        raise HTTPException(status_code=503, detail="Telegram service not available")
+    
+    try:
+        result = telegram_service.delete_webhook()
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/telegram/bot-info")
+def get_telegram_bot_info():
+    """
+    获取 Telegram Bot 信息
+    """
+    if not telegram_service:
+        raise HTTPException(status_code=503, detail="Telegram service not available")
+    
+    try:
+        result = telegram_service.get_me()
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/chat", response_model=ChatResponse)
 async def chat(

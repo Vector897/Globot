@@ -39,3 +39,7 @@ azure-identity>=1.15.0
 pytest
 pytest-asyncio
 httpx
+
+# Telegram Bot
+python-telegram-bot==20.7  # 可选：更高级的 Telegram Bot 库
+# 注意：我们当前使用 requests 直接调用 API，无需额外依赖
