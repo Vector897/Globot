@@ -1,0 +1,214 @@
+
+.demo-page {
+  background-color: #0b0f19;
+  color: white;
+  min-height: 100vh;
+  padding: 20px;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.demo-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #333;
+}
+
+.demo-header h1 {
+  margin: 0;
+  font-weight: 300;
+  letter-spacing: 1px;
+}
+
+.start-btn {
+  background: #0078d4;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 4px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.start-btn:hover {
+  background: #106ebe;
+}
+
+.status-badge {
+    color: #4caf50;
+    border: 1px solid #4caf50;
+    padding: 5px 10px;
+    border-radius: 4px;
+    font-size: 0.9rem;
+}
+
+.demo-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 20px;
+}
+
+.col-left {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.col-right {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* Azure Badges Styles */
+.azure-services-panel {
+  background: rgba(0, 120, 212, 0.1);
+  padding: 20px;
+  border-radius: 8px;
+  border: 1px solid #0078d4;
+}
+
+.service-badges {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  margin-top: 15px;
+}
+
+.service-badge {
+  background: rgba(0, 0, 0, 0.5);
+  padding: 15px;
+  border-radius: 6px;
+  border-left: 4px solid #0078d4;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.service-badge .icon {
+  font-size: 24px;
+}
+
+.service-badge .info {
+  flex: 1;
+}
+
+.service-badge .name {
+  font-weight: 600;
+  color: white;
+  margin-bottom: 4px;
+}
+
+.service-badge .stats {
+  font-size: 12px;
+  color: #8899a6;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #333;
+}
+
+.status-dot.active {
+  background: #34c759;
+  box-shadow: 0 0 10px #34c759;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+/* Live Stream Panel */
+.live-stream-panel {
+  background: rgba(0, 21, 41, 0.8);
+  padding: 20px;
+  border-radius: 8px;
+  border: 1px solid #333;
+}
+
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+}
+
+.pulse-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ff453a;
+  margin-right: 8px;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+/* Agent Workflow Styles */
+
+.agent-workflow {
+    background: #161b22;
+    padding: 20px;
+    border-radius: 8px;
+    border: 1px solid #333;
+}
+
+.agent-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.agent-card {
+    background: #0d1117;
+    border: 1px solid #30363d;
+    padding: 15px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    transition: all 0.3s;
+}
+
+.agent-icon {
+    font-size: 1.5rem;
+}
+
+.agent-info {
+    flex: 1;
+}
+
+.agent-name {
+    font-weight: 500;
+    margin-bottom: 5px;
+}
+
+.progress-bar {
+    height: 4px;
+    background: #30363d;
+    border-radius: 2px;
+    margin-bottom: 5px;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    background: #0078d4;
+    transition: width 0.3s linear;
+}
+
+.agent-status {
+    font-size: 0.8rem;
+    color: #8b949e;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}

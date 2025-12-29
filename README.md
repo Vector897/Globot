@@ -1,378 +1,119 @@
-# 🤖 DJI Sales AI Assistant - 大疆智能销售助理系统
+# 🛡️ Globot: 全球贸易的 AI 守护盾 (v2.0.20251229)
 
-[![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/Vector897/RoSP_Hackthon)
-[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![Python](https://img.shields.io/badge/python-3.10+-brightgreen.svg)](https://www.python.org/)
-[![React](https://img.shields.io/badge/react-18.0+-blue.svg)](https://reactjs.org/)
+> **Imagine Cup 2026 参赛作品 - "演示专用 (Mock-Ready)" 版本**
 
-> 基于 RAG 技术和大语言模型的智能销售助理系统，为 DJI 无人机产品提供 7x24 自动化客户服务和销售支持。
+![Globot Dashboard](ai-sales-mvp/frontend/src/assets/dashboard_preview.png)
 
----
+## 📖 项目概览
 
-## 📋 项目简介
+**Globot** 代表了全球贸易风险管理的范式转变。与传统的静态仪表盘不同，Globot 是一个 **Agentic AI (代理智能) 系统**，能够实时主动监控、分析并缓解供应链风险。
 
-DJI Sales AI Assistant 是一个企业级 AI 销售助理系统，通过集成检索增强生成（RAG）技术和 Google Gemini 2.0 Flash 模型，为客户提供专业、准确的产品咨询服务。系统具备智能对话、客户分类、人工接手等完整功能，实现销售流程的自动化和智能化。
+此版本 (**v2.0.20251229**) 是专门构建的 **"演示优先 (Mock-First)"** 版本，旨在确保演示过程的绝对稳定和高冲击力，不依赖可能不稳定的外部 API。它模拟了一个逼真的 "下午 4:55 危机场景"，涉及霍尔木兹海峡的船只扣押事件。
 
-### ✨ 核心特性
+## 🌟 核心功能 (v2.0 视觉升级版)
 
-- **🧠 智能对话系统**: 基于 RAG 的知识检索，提供准确的产品信息和技术咨询
-- **👥 客户智能分类**: 自动识别客户价值和购买意向，优化销售资源分配
-- **🤝 无缝人工接手**: 低置信度自动转人工，支持人工客服实时介入
-- **📊 管理后台**: 客户管理、对话监控、转人工队列管理
-- **🌐 多语言支持**: 支持中英文对话（可扩展更多语言）
-- **⚡ 实时响应**: 基于 FastAPI 的高性能后端，秒级响应
+### 1. 🛫 航空级物流全息地图 (Deck.gl)
 
----
+- **全息可视化**: 采用半透明、多维度的投影风格，配合 "航空海图" 美学 (蓝白技术网格)。
+- **实时追踪**: 可视化 50+ 条背景物流航线和高保真港口节点 (上海、鹿特丹、洛杉矶等)。
+- **危机指示**: 瞬间高亮显示 "风险中 (At-Risk)" 的船只，使用 **脉冲红色信标** 取代通用的静态连线。
 
-## 🏗️ 技术架构
+### 2. 🤖 多 Agent 协作引擎
 
-### 后端技术栈
+展示了由 5 个专业 AI Agent 组成的团队协同工作：
 
-- **框架**: FastAPI 0.104+
-- **数据库**: PostgreSQL 15 (Docker)
-- **ORM**: SQLAlchemy 2.0+
-- **向量数据库**: ChromaDB
-- **AI 模型**: Google Gemini 2.0 Flash
-- **嵌入模型**: text-embedding-004
+- **🔭 市场哨兵 (Market Sentinel)**: 监控路透社/彭博社的地缘政治信号。
+- **🛡️ 风险对冲专家 (Risk Hedger)**: 计算财务风险敞口并触发保险买入。
+- **🚢 物流指挥官 (Logistics Orchestrator)**: 重新规划航线以避开冲突区域。
+- **📋 合规经理 (Compliance Manager)**: 核查 OFAC/UN 制裁名单。
+- **⚖️ 对抗性辩论 (Adversarial Debate)**: 对决策进行红队测试，防止幻觉。
 
-### 前端技术栈
+_特性_: 每个 Agent 都配备 **动态 "呼吸灯" 状态** (蓝=工作中, 绿=完成, 红=警报)，并与危机时间轴完全同步。
 
-- **框架**: React 18
-- **构建工具**: Vite 5
-- **UI 组件**: Ant Design 5
-- **路由**: React Router DOM 6
-- **HTTP 客户端**: Axios
+### 3. ☁️ "Azure 驱动 (Powered by Azure)" 集成
 
-### 核心架构
+- 展示 **Azure OpenAI (GPT-4o)** 的推理能力。
+- **Azure AI Search** 用于 RAG (检索增强生成)。
+- **Azure Cognitive Services** 用于实时信号处理。
 
-```
-┌─────────────────┐
-│   前端 (React)   │
-│  - 聊天界面      │
-│  - 管理后台      │
-└────────┬────────┘
-         │ REST API
-         ▼
-┌─────────────────┐
-│  后端 (FastAPI)  │
-│  - 路由控制      │
-│  - 业务逻辑      │
-└────────┬────────┘
-         │
-    ┌────┴────┐
-    ▼         ▼
-┌──────┐  ┌──────┐
-│ AI核心│  │数据库 │
-│ -RAG │  │-PG   │
-│-Gemini│  │-Chroma│
-└──────┘  └──────┘
+## 🏗️ 技术架构 (演示专用版)
+
+此版本采用 **解耦 Mock 架构** 以确保 100% 的演示可靠性。
+
+```mermaid
+graph TD
+    Client[前端 (React + Vite)]
+    MockServer[后端 (FastAPI + Mock Data)]
+
+    subgraph "前端层"
+        Map[3D 地球 (Deck.gl)]
+        Stream[风险监控器 (Ant Design Charts)]
+        Agents[Agent 工作流 (Framer Motion)]
+    end
+
+    subgraph "后端模拟"
+        WS[WebSocket 管理器]
+        Gen[场景生成器]
+        Time[时间轴控制器]
+    end
+
+    Client <-->|WebSocket 实时事件| WS
+    WS <--> Gen
+    Gen -->|注入| Time
 ```
 
----
+- **前端**: React, TypeScript, Deck.gl, Ant Design, Framer Motion.
+- **后端**: Python FastAPI (提供预计算的场景 JSON).
+- **数据**: 模拟 60 秒危机循环的静态 Mock 数据.
 
-## 🚀 快速开始
+## 🚀 快速开始 (运行指南)
 
 ### 前置要求
 
-- Python 3.10+
-- Node.js 18+
-- Docker & Docker Compose
-- Git
+- Node.js (v18+)
+- Python (3.9+)
 
-### 1. 克隆项目
+### 1. 启动前端
 
 ```bash
-git clone https://github.com/Vector897/RoSP_Hackthon.git
-cd RoSP_Hackthon
-```
-
-### 2. 环境配置
-
-创建 `.env` 文件并配置必要的环境变量：
-
-```env
-# Google AI API
-GOOGLE_API_KEY=your_google_api_key_here
-
-# 数据库配置
-DATABASE_URL=postgresql://user:password@localhost:5432/dji_sales_mvp
-
-# 应用配置
-ENVIRONMENT=development
-LOG_LEVEL=INFO
-```
-
-### 3. 启动数据库
-
-```bash
-docker-compose up -d
-```
-
-### 4. 启动后端
-
-```bash
-cd backend
-pip install -r requirements.txt
-python main.py
-```
-
-后端服务将运行在 `http://localhost:8000`
-
-### 5. 启动前端
-
-```bash
-cd frontend
+cd ai-sales-mvp/frontend
 npm install
 npm run dev
 ```
 
-前端服务将运行在 `http://localhost:5173`
+> 以此访问: `http://localhost:5175/demo`
 
-### 6. 访问应用
+### 2. 启动后端 (可选，用于 UI 展示)
 
-- **客户聊天界面**: http://localhost:5173
-- **管理后台**: http://localhost:5173/admin
-- **API 文档**: http://localhost:8000/docs
-
----
-
-## 📁 项目结构
-
-```
-ai-sales-mvp/
-├── backend/                      # 后端服务
-│   ├── core/                     # 核心模块
-│   │   ├── chatbot.py           # AI 聊天机器人
-│   │   ├── classifier.py        # 客户分类器
-│   │   ├── handoff_manager.py   # 人工接手管理
-│   │   └── rag_manager.py       # RAG 知识库管理
-│   ├── data/                     # 数据文件
-│   │   └── vector_db/           # 向量数据库
-│   ├── models.py                 # 数据模型定义
-│   ├── database.py               # 数据库配置
-│   ├── main.py                   # FastAPI 主应用
-│   └── requirements.txt          # Python 依赖
-├── frontend/                     # 前端应用
-│   ├── src/
-│   │   ├── components/          # React 组件
-│   │   │   ├── Admin/           # 管理后台组件
-│   │   │   └── Chat/            # 聊天组件
-│   │   ├── services/            # API 服务
-│   │   └── App.jsx              # 主应用
-│   ├── package.json             # NPM 依赖
-│   └── vite.config.js           # Vite 配置
-├── docker-compose.yml           # Docker 编排文件
-└── README.md                    # 项目文档
-```
-
----
-
-## 🎯 核心功能
-
-### 1. 智能对话系统
-
-- **RAG 增强**: 实时检索产品知识库，提供准确回答
-- **上下文理解**: 多轮对话上下文保持
-- **置信度评估**: 自动评估回答质量
-- **产品标签**: 自动识别咨询产品类型
-
-### 2. 客户智能分类
-
-基于对话历史自动分类客户：
-
-- **VIP 客户**: 高价值、明确购买意向
-- **潜在客户**: 有兴趣但需要培育
-- **普通客户**: 一般咨询
-
-优先级评分（1-5 分）：
-
-- 5 分: 紧急且高价值
-- 4 分: 高价值
-- 3 分: 正常
-- 2-1 分: 低优先级
-
-### 3. 人工接手流程
-
-```
-触发条件:
-├─ AI 置信度 < 70%
-├─ 客户主动要求
-└─ 复杂问题
-
-处理流程:
-1. 创建转接记录
-2. 进入待处理队列
-3. 销售人员接手
-4. 提供人工回复
-5. 完成服务
-```
-
-### 4. 管理后台
-
-- **客户管理**: 客户列表、分类、优先级
-- **对话监控**: 实时查看对话历史
-- **转人工队列**: 管理待处理的转人工请求
-- **数据统计**: 对话量、转人工率等指标
-
----
-
-## 🔧 API 文档
-
-### 核心端点
-
-| 方法 | 路径                                  | 说明           |
-| ---- | ------------------------------------- | -------------- |
-| POST | `/api/chat`                           | 发送消息       |
-| POST | `/api/customers`                      | 创建客户       |
-| GET  | `/api/customers`                      | 获取客户列表   |
-| GET  | `/api/conversations/{customer_id}`    | 获取对话历史   |
-| GET  | `/api/conversation/{conversation_id}` | 获取单个对话   |
-| POST | `/api/classify/{customer_id}`         | 客户分类       |
-| GET  | `/api/handoffs`                       | 获取转人工列表 |
-| POST | `/api/messages/human`                 | 人工发送消息   |
-| PUT  | `/api/handoffs/{id}/status`           | 更新转人工状态 |
-
-详细 API 文档请访问: http://localhost:8000/docs
-
----
-
-## 🧪 测试
-
-### 运行测试
+_注意: 当前 v2.0 前端可在后端离线时以 "仅 UI 模式" 运行，但为了完整的 WebSocket 体验建议启动后端:_
 
 ```bash
-# 后端测试
-cd backend
-pytest
-
-# 前端测试
-cd frontend
-npm test
+cd ai-sales-mvp/backend
+pip install -r requirements.txt
+python main.py
 ```
 
-### 手动测试流程
+## 📂 项目结构
 
-1. **客户对话测试**
-
-   - 访问聊天界面
-   - 创建新客户
-   - 发送产品咨询消息
-   - 验证 AI 回复
-
-2. **人工接手测试**
-
-   - 发送"我要人工客服"
-   - 检查管理后台转人工队列
-   - 接手对话并回复
-   - 完成服务
-
-3. **客户分类测试**
-   - 进行多轮对话
-   - 检查客户分类结果
-   - 验证优先级评分
-
----
-
-## 📊 性能指标
-
-- **响应时间**: < 2 秒（含 AI 生成）
-- **并发支持**: 100+ 并发用户
-- **准确率**: 85%+ (基于知识库覆盖)
-- **可用性**: 99.9%
-
----
-
-## 🛠️ 开发指南
-
-### 添加新的知识库文档
-
-```bash
-# 将 PDF/TXT 文档放入 backend/data/knowledge_base/
-# 重启后端服务自动加载
+```
+RoSP/
+├── ai-sales-mvp/
+│   ├── frontend/          # React 应用程序
+│   │   ├── src/components # Globe3D, AgentWorkflow 等组件
+│   │   └── src/pages      # DemoPage (主控制器)
+│   └── backend/           # FastAPI 服务器
+├── docs/                  # 技术白皮书 & 演示文稿
+└── submitted_materials/   # 最终 Imagine Cup 交付材料
 ```
 
-### 自定义 AI 提示词
+## 📝 更新日志 (v2.0.20251229)
 
-编辑 `backend/core/chatbot.py` 中的系统提示词：
-
-```python
-SYSTEM_PROMPT = """
-你是 DJI 的专业销售顾问...
-"""
-```
-
-### 扩展数据模型
-
-1. 修改 `backend/models.py`
-2. 生成迁移文件
-3. 应用数据库迁移
+- **新增**: 带有时间轴叙事的系统事件日志。
+- **优化**: 移除日志中的表情符号，提升专业度。
+- **升级**: 3D 地球现包含国界线和港口标签。
+- **修复**: Globe3D 组件的编译问题。
 
 ---
 
-## 🤝 贡献指南
-
-欢迎贡献代码！请遵循以下步骤：
-
-1. Fork 本仓库
-2. 创建特性分支 (`git checkout -b feature/AmazingFeature`)
-3. 提交更改 (`git commit -m 'Add some AmazingFeature'`)
-4. 推送到分支 (`git push origin feature/AmazingFeature`)
-5. 开启 Pull Request
-
----
-
-## 📝 更新日志
-
-### v1.0.0 (2025-12-25)
-
-**初始版本发布**
-
-- ✅ 完整的 AI 对话系统
-- ✅ 客户智能分类功能
-- ✅ 人工接手工作流
-- ✅ 管理后台界面
-- ✅ RESTful API
-- ✅ 多语言支持（中英文）
-
-**已修复问题**
-
-- 🐛 修复人工回复消息不显示的问题
-- 🐛 优化对话历史加载逻辑
-
----
-
-## 📄 许可证
-
-本项目采用 MIT 许可证 - 详见 [LICENSE](LICENSE) 文件
-
----
-
-## 👥 团队
-
-- **开发者**: Vector897
-- **项目**: RoSP Hackathon
-- **联系方式**: [GitHub Issues](https://github.com/Vector897/RoSP_Hackthon/issues)
-
----
-
-## 🙏 致谢
-
-- [Google Gemini](https://ai.google.dev/) - AI 模型支持
-- [ChromaDB](https://www.trychroma.com/) - 向量数据库
-- [FastAPI](https://fastapi.tiangolo.com/) - 后端框架
-- [React](https://reactjs.org/) - 前端框架
-- [Ant Design](https://ant.design/) - UI 组件库
-
----
-
-## 📞 支持
-
-如有问题或建议，请通过以下方式联系：
-
-- 提交 [GitHub Issue](https://github.com/Vector897/RoSP_Hackthon/issues)
-- 发送邮件至项目维护者
-- 查看[文档](https://github.com/Vector897/RoSP_Hackthon/wiki)
-
----
-
-**⭐ 如果这个项目对你有帮助，请给个 Star！**
+**维护者**: Vector897
+**许可证**: MIT

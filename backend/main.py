@@ -16,6 +16,8 @@ from models import Customer, Conversation, Message, CustomerCategory, MessageSen
 from core.chatbot import get_chatbot
 from core.classifier import get_classifier
 from core.handoff_manager import get_handoff_manager
+from api.v2.azure_routes import router as azure_router
+from api.v2.demo_routes import router as demo_router
 
 # 配置日志
 logging.basicConfig(level=logging.INFO)
@@ -29,6 +31,10 @@ app = FastAPI(
     title="DJI Sales AI Assistant API",
     description="大疆无人机智能销售助理系统", version="0.1.0"
 )
+
+# 注册Azure路由
+app.include_router(azure_router)
+app.include_router(demo_router)
 
 # 配置CORS
 app.add_middleware(

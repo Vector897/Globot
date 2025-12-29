@@ -30,3 +30,12 @@ python-docx==1.1.0
 # Ollama客户端
 ollama==0.1.6
 google-generativeai>=0.3.0
+
+# Azure Integration
+openai>=1.0.0
+azure-search-documents>=11.4.0
+azure-ai-textanalytics>=5.3.0
+azure-identity>=1.15.0
+pytest
+pytest-asyncio
+httpx
