@@ -1,13 +1,15 @@
 """
-LLM服务模块 - 使用Ollama本地大模型
+LLM服务模块 - 支持Ollama或OpenAI(ChatGPT)
 """
+import logging
+from typing import List, Dict
+
 import ollama
 from config import get_settings
-from typing import List, Dict
-import logging
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
+
 
 class OllamaService:
     """Ollama LLM服务封装"""
@@ -79,12 +81,64 @@ class OllamaService:
             logger.error(f"Ollama生成失败: {e}")
             return "抱歉，我遇到了一些技术问题，请稍后再试。"
 
+
+class OpenAIService:
+    """OpenAI ChatGPT 服务封装"""
+
+    def __init__(self):
+        try:
+            from openai import OpenAI
+        except Exception as exc:  # pragma: no cover - runtime guard
+            raise RuntimeError(f"OpenAI SDK 未安装: {exc}") from exc
+
+        if not settings.openai_api_key:
+            raise ValueError("缺少 openai_api_key，请在环境变量或.env中配置")
+
+        self.client = OpenAI(
+            api_key=settings.openai_api_key,
+            base_url=settings.openai_base_url or None,
+        )
+        self.model = settings.openai_model
+        logger.info(f"初始化OpenAI服务: {self.model} @ {settings.openai_base_url or 'https://api.openai.com'}")
+
+    def chat(self, messages: List[Dict[str, str]], temperature: float = 0.7, max_tokens: int = 512) -> str:
+        try:
+            resp = self.client.chat.completions.create(
+                model=self.model,
+                messages=messages,
+                temperature=temperature,
+                max_tokens=max_tokens,
+            )
+            return resp.choices[0].message.content
+        except Exception as e:
+            logger.error(f"OpenAI调用失败: {e}")
+            return "抱歉，我遇到了一些技术问题，请稍后再试。"
+
+    def generate(self, prompt: str, temperature: float = 0.7, max_tokens: int = 512) -> str:
+        # 复用 chat 接口，使用单轮 user 消息
+        return self.chat(
+            [{"role": "user", "content": prompt}],
+            temperature=temperature,
+            max_tokens=max_tokens
+        )
+
+
 # 全局单例
 _llm_service = None
 
 def get_llm_service() -> OllamaService:
     """获取LLM服务实例（单例）"""
     global _llm_service
-    if _llm_service is None:
-        _llm_service = OllamaService()
+    if _llm_service is not None:
+        return _llm_service
+
+    provider = (settings.llm_provider or "ollama").lower()
+    if provider == "openai":
+        try:
+            _llm_service = OpenAIService()
+            return _llm_service
+        except Exception as e:
+            logger.error(f"初始化OpenAI失败，回退到Ollama: {e}")
+
+    _llm_service = OllamaService()
     return _llm_service

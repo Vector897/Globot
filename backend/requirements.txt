@@ -1,30 +1,38 @@
-fastapi==0.104.1
-uvicorn[standard]==0.24.0
+fastapi==0.115.6
+uvicorn[standard]==0.34.3
 pydantic>=2.10.0
 pydantic-settings>=2.6.0
-numpy>=1.26.0,<2.0
-
+anyio>=3.7.1,<5
+numpy>=1.26.0
 
 # Database
 psycopg2-binary>=2.9.0
 sqlalchemy==2.0.23
 alembic==1.13.1
 
-# AI/ML
+# AI / ML
 langchain>=0.3.60
 langchain-community>=0.3.60
-chromadb==0.4.22
+langchain-huggingface>=0.1.0
+langchain-chroma>=0.1.4
+chromadb==1.1.1
 sentence-transformers==2.3.1
 
+# Agent orchestration
+crewai==1.7.2
+
+# LLM provider (CrewAI-compatible)
+openai==1.83.0
+
 # Tools
-python-dotenv==1.0.0
+python-dotenv==1.1.1
 requests>=2.32.5
 aiohttp==3.9.1
-python-multipart==0.0.6
+python-multipart==0.0.21
 
 # PDF Processing
 pypdf==4.0.1
 python-docx==1.1.0
 
 # Ollama Client
-ollama==0.1.6
+ollama==0.6.1

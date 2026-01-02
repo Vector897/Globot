@@ -16,6 +16,8 @@ from models import Customer, Conversation, Message, CustomerCategory, MessageSen
 from core.chatbot import get_chatbot
 from core.classifier import get_classifier
 from core.handoff_manager import get_handoff_manager
+from core.crew_orchestrator import get_crew_orchestrator
+from core.crew_stock_research import build_company_research_crew
 
 # 配置日志
 logging.basicConfig(level=logging.INFO)
@@ -44,6 +46,7 @@ try:
     chatbot = get_chatbot()
     classifier = get_classifier()
     handoff_manager = get_handoff_manager()
+    crew_orchestrator = get_crew_orchestrator()
     logger.info("核心模块初始化成功")
 except Exception as e:
     logger.error(f"核心模块初始化失败: {e}")
@@ -51,6 +54,7 @@ except Exception as e:
     chatbot = None
     classifier = None
     handoff_manager = None
+    crew_orchestrator = None
 
 
 # ========== 数据模型 ==========
@@ -59,6 +63,7 @@ class ChatRequest(BaseModel):
     customer_id: int
     message: str
     language: str = 'zh-cn'
+    use_crewai: bool = False  # feature flag: enable CrewAI orchestration
 
 class ChatResponse(BaseModel):
     answer: str
@@ -87,6 +92,12 @@ class UpdateHandoffStatusRequest(BaseModel):
     """更新转人工状态"""
     status: str  # pending/processing/completed
     agent_name: Optional[str] = None
+
+class CompanyResearchRequest(BaseModel):
+    """公司研究请求"""
+    company: str
+    question: str
+    ticker: Optional[str] = None
 
 # ========== API路由 ==========
 
@@ -139,12 +150,25 @@ async def chat(
     )
     db.add(customer_msg)
     
-    # 4. 调用聊天机器人
-    response = chatbot.chat(
-        customer_id=request.customer_id,
-        message=request.message,
-        language=request.language
-    )
+    # 4. 调用聊天机器人（CrewAI特性可选）
+    response = None
+    if request.use_crewai and crew_orchestrator:
+        try:
+            response = crew_orchestrator.chat(
+                customer_id=request.customer_id,
+                message=request.message,
+                language=request.language
+            )
+        except Exception as e:
+            logger.warning(f"CrewAI模式失败，回退默认机器人: {e}")
+            response = None
+
+    if response is None:
+        response = chatbot.chat(
+            customer_id=request.customer_id,
+            message=request.message,
+            language=request.language
+        )
     
     # 5. 保存AI消息
     ai_msg = Message(
@@ -445,6 +469,29 @@ def update_handoff_status(handoff_id: int, request: UpdateHandoffStatusRequest, 
         "agent_name": handoff.agent_name,
         "updated_at": handoff.updated_at.isoformat()
     }
+
+# ========== Company Research CrewAI ==========
+
+@app.post("/api/company-research")
+def run_company_research(request: CompanyResearchRequest):
+    """运行公司研究CrewAI流水线"""
+    try:
+        crew, tasks = build_company_research_crew(
+            company=request.company,
+            question=request.question,
+            ticker=request.ticker,
+        )
+        result = crew.kickoff()
+        # CrewAI returns a rich object; cast to string for API response.
+        return {
+            "company": request.company,
+            "ticker": request.ticker,
+            "question": request.question,
+            "result": str(result)
+        }
+    except Exception as e:
+        logger.error(f"Company research crew failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Company research failed: {e}")
 
 # ========== 后台任务 ==========
 

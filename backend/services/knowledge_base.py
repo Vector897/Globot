@@ -2,8 +2,8 @@
 知识库模块 - RAG (Retrieval-Augmented Generation)
 使用Chroma向量数据库存储和检索产品文档
 """
-from langchain_community.embeddings import HuggingFaceEmbeddings
-from langchain_community.vectorstores import Chroma
+from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_chroma import Chroma
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_core.documents import Document
 from config import get_settings
