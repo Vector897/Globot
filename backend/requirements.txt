@@ -1,30 +1,30 @@
 fastapi==0.104.1
 uvicorn[standard]==0.24.0
-pyd
+pydantic>=2.10.0
+pydantic-settings>=2.6.0
+numpy>=1.26.0,<2.0
 
-antic==2.5.0
-pydantic-settings==2.1.0
 
-# 数据库
-psycopg2-binary==2.9.9
+# Database
+psycopg2-binary>=2.9.0
 sqlalchemy==2.0.23
 alembic==1.13.1
 
 # AI/ML
-langchain==0.1.0
-langchain-community==0.0.13
+langchain>=0.3.60
+langchain-community>=0.3.60
 chromadb==0.4.22
 sentence-transformers==2.3.1
 
-# 工具
+# Tools
 python-dotenv==1.0.0
-requests==2.31.0
+requests>=2.32.5
 aiohttp==3.9.1
 python-multipart==0.0.6
 
-# PDF处理
+# PDF Processing
 pypdf==4.0.1
 python-docx==1.1.0
 
-# Ollama客户端
+# Ollama Client
 ollama==0.1.6
