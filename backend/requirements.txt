@@ -28,3 +28,22 @@ python-docx==1.1.0
 
 # Ollama Client
 ollama==0.1.6
+
+# RAG Enhancement (required by knowledge_base.py)
+rank-bm25>=0.2.2
+jieba>=0.42.1
+langchain-text-splitters>=0.0.1
+
+# Azure Integration (required by azure_routes.py)
+openai>=1.0.0
+azure-search-documents>=11.4.0
+azure-ai-textanalytics>=5.3.0
+azure-identity>=1.15.0
+
+# Google AI (optional)
+google-generativeai>=0.3.0
+
+# Testing
+pytest
+pytest-asyncio
+httpx
