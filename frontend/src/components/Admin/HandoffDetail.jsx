@@ -10,7 +10,7 @@ import {
 } from '@ant-design/icons';
 import ReactMarkdown from 'react-markdown';
 import { chatAPI } from '../../services/api';
-import './HandoffDetail.css';
+import styles from './HandoffDetail.module.css';
 
 const { TextArea } = Input;
 
@@ -243,19 +243,19 @@ const HandoffDetail = () => {
                     dot={getSenderIcon(message.sender.toLowerCase())}
                     color={getSenderColor(message.sender.toLowerCase())}
                   >
-                    <div className="message-item">
-                      <div className="message-header">
+                    <div className={styles.messageItem}>
+                      <div className={styles.messageHeader}>
                         <Tag color={getSenderColor(message.sender.toLowerCase())}>
                           {getSenderText(message.sender.toLowerCase())}
                         </Tag>
-                        <span className="message-time">
+                        <span className={styles.messageTime}>
                           {new Date(message.created_at).toLocaleString('zh-CN')}
                         </span>
                         {message.ai_confidence !== undefined && (
                           <Tag>置信度: {(message.ai_confidence * 100).toFixed(0)}%</Tag>
                         )}
                       </div>
-                      <div className="message-content">
+                      <div className={styles.messageContent}>
                         {message.sender.toLowerCase() !== 'customer' ? (
                           <ReactMarkdown>{message.content}</ReactMarkdown>
                         ) : (

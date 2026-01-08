@@ -1,47 +1,48 @@
-.message-item {
+.messageItem {
   background: #fafafa;
   padding: 12px 16px;
   border-radius: 8px;
   margin-top: 8px;
 }
 
-.message-header {
+.messageHeader {
   display: flex;
   align-items: center;
   gap: 12px;
   margin-bottom: 8px;
 }
 
-.message-time {
+.messageTime {
   font-size: 12px;
   color: #8c8c8c;
 }
 
-.message-content {
+.messageContent {
   color: #262626;
   line-height: 1.6;
 }
 
-.message-content p {
+.messageContent p {
   margin: 0;
 }
 
-.message-content h1,
-.message-content h2,
-.message-content h3 {
+.messageContent h1,
+.messageContent h2,
+.messageContent h3 {
   margin-top: 8px;
   margin-bottom: 4px;
 }
 
-.message-content code {
+.messageContent code {
   background: #f0f0f0;
   padding: 2px 4px;
   border-radius: 3px;
 }
 
-.message-content pre {
+.messageContent pre {
   background: #f0f0f0;
   padding: 8px;
   border-radius: 4px;
   overflow-x: auto;
 }
+

@@ -1,4 +1,4 @@
-* {
+/* * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
@@ -13,6 +13,8 @@ body {
 }
 
 /* 客户端页面 */
+/*
+
 .customer-page {
   min-height: 100vh;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -34,8 +36,10 @@ body {
   font-size: 20px;
   opacity: 0.9;
 }
+*/
 
 /* 管理后台布局 */
+/*
 .admin-layout {
   min-height: 100vh;
   background: #f0f2f5;
@@ -54,7 +58,10 @@ body {
   color: #262626;
 }
 
+*/
+
 /* 响应式 */
+/*
 @media (max-width: 768px) {
   .hero-section h1 {
     font-size: 32px;
@@ -63,4 +70,6 @@ body {
   .hero-section p {
     font-size: 16px;
   }
-}
+} 
+
+*/

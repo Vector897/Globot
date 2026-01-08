@@ -4,7 +4,7 @@ import { MessageOutlined, SendOutlined, CloseOutlined, RobotOutlined, UserOutlin
 import ReactMarkdown from 'react-markdown';
 import { chatAPI } from '../../services/api';
 import messageService from '../../services/messageService';
-import './ChatWidget.css';
+import styles from './ChatWidget.module.css';
 
 const { TextArea } = Input;
 
@@ -127,7 +127,7 @@ const ChatWidget = () => {
   };
 
   return (
-    <div className="chat-widget">
+    <div className={styles.chatWidget}>
       {/* 浮动按钮 */}
       {!isOpen && (
         <Badge count={messages.length} offset={[-10, 10]}>
@@ -137,7 +137,7 @@ const ChatWidget = () => {
             size="large"
             icon={<MessageOutlined />}
             onClick={() => setIsOpen(true)}
-            className="chat-button"
+            className={styles.chatButton}
           />
         </Badge>
       )}
@@ -145,7 +145,7 @@ const ChatWidget = () => {
       {/* 聊天窗口 */}
       {isOpen && (
         <Card
-          className="chat-window"
+          className={styles.chatWindow}
           title={
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div>
@@ -162,7 +162,7 @@ const ChatWidget = () => {
         >
           {/* 欢迎界面 */}
           {showNameInput ? (
-            <div className="welcome-screen">
+            <div className={styles.welcomeScreen}>
               <Avatar size={64} icon={<RobotOutlined />} style={{ marginBottom: 16 }} />
               <h3>欢迎咨询 DJI 工业无人机</h3>
               <p style={{ color: '#8c8c8c', marginBottom: 24 }}>
@@ -187,7 +187,7 @@ const ChatWidget = () => {
           ) : (
             <>
               {/* 消息列表 */}
-              <div className="messages-container">
+              <div className={styles.messagesContainer}>
                 {messages.length === 0 && (
                   <div style={{ textAlign: 'center', color: '#8c8c8c', padding: 32 }}>
                     <RobotOutlined style={{ fontSize: 48, marginBottom: 16 }} />
@@ -199,7 +199,7 @@ const ChatWidget = () => {
                 {messages.map((msg) => (
                   <div
                     key={msg.id}
-                    className={`message ${msg.sender === 'CUSTOMER' ? 'user-message' : 'ai-message'}`}
+                    className={`${styles.message} ${msg.sender === 'CUSTOMER' ? styles.userMessage : styles.aiMessage}`}
                   >
                     <Avatar
                       size="small"
@@ -208,14 +208,14 @@ const ChatWidget = () => {
                         backgroundColor: msg.sender === 'CUSTOMER' ? '#1890ff' : '#52c41a'
                       }}
                     />
-                    <div className="message-content">
+                    <div className={styles.messageContent}>
                       {msg.sender === 'AI' ? (
                         <ReactMarkdown>{msg.content}</ReactMarkdown>
                       ) : (
                         <div>{msg.content}</div>
                       )}
                       {msg.ai_confidence !== undefined && (
-                        <div className="confidence-badge">
+                        <div className={styles.confidenceBadge}>
                           置信度: {(msg.ai_confidence * 100).toFixed(0)}%
                         </div>
                       )}
@@ -224,9 +224,9 @@ const ChatWidget = () => {
                 ))}
                 
                 {loading && (
-                  <div className="message ai-message">
+                  <div className={`${styles.message} ${styles.aiMessage}`}>
                     <Avatar size="small" icon={<RobotOutlined />} style={{ backgroundColor: '#52c41a' }} />
-                    <div className="message-content">
+                    <div className={styles.messageContent}>
                       <Spin size="small" /> AI正在思考...
                     </div>
                   </div>
@@ -236,7 +236,7 @@ const ChatWidget = () => {
               </div>
 
               {/* 输入框 */}
-              <div className="input-container">
+              <div className={styles.inputContainer}>
                 <TextArea
                   value={inputValue}
                   onChange={(e) => setInputValue(e.target.value)}

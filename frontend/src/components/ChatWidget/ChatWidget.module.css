@@ -1,18 +1,18 @@
-.chat-widget {
+.chatWidget {
   position: fixed;
   bottom: 24px;
   right: 24px;
   z-index: 1000;
 }
 
-.chat-button {
+.chatButton {
   width: 60px;
   height: 60px;
   font-size: 24px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
-.chat-window {
+.chatWindow {
   width: 400px;
   height: 600px;
   display: flex;
@@ -21,14 +21,14 @@
   border-radius: 8px;
 }
 
-.chat-window .ant-card-body {
+.chatWindow :global(.ant-card-body) {
   padding: 0;
   height: calc(100% - 57px);
   display: flex;
   flex-direction: column;
 }
 
-.welcome-screen {
+.welcomeScreen {
   padding: 48px 24px;
   text-align: center;
   height: 100%;
@@ -38,7 +38,7 @@
   align-items: center;
 }
 
-.messages-container {
+.messagesContainer {
   flex: 1;
   overflow-y: auto;
   padding: 16px;
@@ -51,39 +51,39 @@
   margin-bottom: 16px;
 }
 
-.user-message {
+.userMessage {
   flex-direction: row-reverse;
 }
 
-.user-message .message-content {
+.userMessage .messageContent {
   background: #1890ff;
   color: white;
   border-radius: 12px 12px 0 12px;
 }
 
-.ai-message .message-content {
+.aiMessage .messageContent {
   background: white;
   border-radius: 12px 12px 12px 0;
 }
 
-.message-content {
+.messageContent {
   max-width: 70%;
   padding: 12px 16px;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
   word-wrap: break-word;
 }
 
-.message-content p {
+.messageContent p {
   margin: 0;
 }
 
-.confidence-badge {
+.confidenceBadge {
   font-size: 11px;
   color: #8c8c8c;
   margin-top: 4px;
 }
 
-.input-container {
+.inputContainer {
   padding: 16px;
   background: white;
   border-top: 1px solid #f0f0f0;
@@ -92,47 +92,48 @@
   align-items: flex-end;
 }
 
-.input-container textarea {
+.inputContainer textarea {
   flex: 1;
 }
 
 /* 响应式设计 */
 @media (max-width: 768px) {
-  .chat-widget {
+  .chatWidget {
     bottom: 0;
     right: 0;
     left: 0;
   }
 
-  .chat-window {
+  .chatWindow {
     width: 100%;
     height: 100vh;
     border-radius: 0;
   }
 
-  .chat-button {
+  .chatButton {
     bottom: 16px;
     right: 16px;
   }
 }
 
 /* Markdown样式 */
-.message-content h1,
-.message-content h2,
-.message-content h3 {
+.messageContent h1,
+.messageContent h2,
+.messageContent h3 {
   margin-top: 8px;
   margin-bottom: 4px;
 }
 
-.message-content code {
+.messageContent code {
   background: #f0f0f0;
   padding: 2px 4px;
   border-radius: 3px;
 }
 
-.message-content pre {
+.messageContent pre {
   background: #f0f0f0;
   padding: 8px;
   border-radius: 4px;
   overflow-x: auto;
 }
+

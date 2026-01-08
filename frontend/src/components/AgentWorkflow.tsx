@@ -1,171 +1,158 @@
 import React, { useEffect, useState } from "react";
-import { motion } from "framer-motion";
+import { AlertTriangle, TrendingUp, Package, Shield, GitBranch } from "lucide-react";
+import { AIAgentCard, AgentStatus } from "./AIAgentCard";
 
-interface Agent {
+interface AgentState {
   id: string;
-  name: string;
-  icon: string;
-  description: string;
-  status: "idle" | "working" | "complete" | "failed"; 
-  lightStatus: "off" | "green" | "red" | "blue"; // For breathing light
-  progress: number;
+  status: AgentStatus;
+  lastAction: string;
 }
 
-const AGENTS: Agent[] = [
+const INITIAL_AGENTS: AgentState[] = [
   {
     id: "market_sentinel",
-    name: "Market Sentinel",
-    icon: "🔭",
-    description: "Monitors global news API (Reuters, Bloomberg) for supply chain disruptions.",
     status: "idle",
-    lightStatus: "green",
-    progress: 0,
+    lastAction: "Monitoring global news feeds for supply chain disruptions",
   },
   {
     id: "risk_hedger",
-    name: "Risk Hedger",
-    icon: "🛡️",
-    description: "Evaluates financial exposure and triggers insurance protocols.",
     status: "idle",
-    lightStatus: "green",
-    progress: 0,
+    lastAction: "Standing by for financial exposure analysis",
   },
   {
     id: "logistics",
-    name: "Logistics Orchestrator",
-    icon: "🚢",
-    description: "Reschedules shipping routes and negotiates with port authorities.",
     status: "idle",
-    lightStatus: "green",
-    progress: 0,
+    lastAction: "Ready to optimize shipping routes",
   },
   {
     id: "compliance",
-    name: "Compliance Manager",
-    icon: "📋",
-    description: "Verifies international trade laws and sanctions lists (OFAC, UN).",
     status: "idle",
-    lightStatus: "green",
-    progress: 0,
+    lastAction: "Awaiting regulatory validation requests",
   },
   {
     id: "debate",
-    name: "Adversarial Debate",
-    icon: "⚖️",
-    description: "Internal AI Red-Teaming to challenge decision logic before execution.",
     status: "idle",
-    lightStatus: "green",
-    progress: 0,
+    lastAction: "Ready for adversarial review",
   },
 ];
 
 interface AgentWorkflowProps {
-    currentTime: number;
-    isLive: boolean;
+  currentTime: number;
+  isLive: boolean;
 }
 
 export const AgentWorkflow: React.FC<AgentWorkflowProps> = ({ currentTime, isLive }) => {
-  const [agents, setAgents] = useState<Agent[]>(AGENTS);
-  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [agents, setAgents] = useState<AgentState[]>(INITIAL_AGENTS);
 
   useEffect(() => {
     if (!isLive) return;
 
-    // Logic linking Agent Status to Scenario Time (currentTime)
-    // 0-10s: Normal
-    // 10s: Crisis Starts -> Market Sentinel detects
-    // 24s: Critical -> Risk Hedger FAILS (Red), then recovers
-    
-    setAgents(prev => prev.map(agent => {
-        let newStatus = agent.status;
-        let newLight = agent.lightStatus;
-        let newProgress = agent.progress;
+    const t = currentTime % 60;
 
-        const t = currentTime % 60;
-
-        switch (agent.id) {
-            case "market_sentinel":
-                if (t > 5 && t < 15) { newStatus = "working"; newLight = "blue"; newProgress = 50; }
-                else if (t >= 15) { newStatus = "complete"; newLight = "green"; newProgress = 100; }
-                break;
-            case "risk_hedger":
-                if (t > 15 && t < 25) { newStatus = "working"; newLight = "red"; newProgress = 30; } // Crisis! Red light
-                else if (t >= 25 && t < 35) { newStatus = "working"; newLight = "blue"; newProgress = 80; } // Working on fix
-                else if (t >= 35) { newStatus = "complete"; newLight = "green"; newProgress = 100; }
-                break;
-            case "logistics":
-                if (t > 28 && t < 40) { newStatus = "working"; newLight = "blue"; newProgress = (t-28)*10; }
-                else if (t >= 40) { newStatus = "complete"; newLight = "green"; newProgress = 100; }
-                break;
-            case "compliance":
-                // Runs parallel to logistics
-                if (t > 30 && t < 38) { newStatus = "working"; newLight = "blue"; newProgress = 60; }
-                else if (t >= 38) { newStatus = "complete"; newLight = "green"; newProgress = 100; }
-                break;
-            case "debate":
-                // Final check
-                if (t > 40 && t < 50) { newStatus = "working"; newLight = "blue"; newProgress = 90; }
-                else if (t >= 50) { newStatus = "complete"; newLight = "green"; newProgress = 100; }
-                break;
-        }
-
-        return { ...agent, status: newStatus as any, lightStatus: newLight as any, progress: newProgress };
-    }));
-
+    setAgents([
+      {
+        id: "market_sentinel",
+        status: t > 5 && t < 15 ? "thinking" : t >= 15 ? "alert" : "idle",
+        lastAction: t >= 15 
+          ? "Detected 47% increase in North Atlantic corridor risk indicators"
+          : t > 5 
+            ? "Scanning Reuters, Bloomberg for supply chain disruptions..."
+            : "Monitoring global news feeds for supply chain disruptions",
+      },
+      {
+        id: "risk_hedger",
+        status: t > 15 && t < 25 ? "alert" : t >= 25 && t < 35 ? "thinking" : t >= 35 ? "completed" : "idle",
+        lastAction: t >= 35
+          ? "Recalculated portfolio exposure across alternative routes"
+          : t >= 25
+            ? "Analyzing financial exposure and hedging options..."
+            : t > 15
+              ? "CRITICAL: Elevated risk detected in primary corridor"
+              : "Standing by for financial exposure analysis",
+      },
+      {
+        id: "logistics",
+        status: t > 28 && t < 40 ? "thinking" : t >= 40 ? "completed" : "idle",
+        lastAction: t >= 40
+          ? "Secured alternative carrier capacity for 12 high-priority shipments"
+          : t > 28
+            ? "Negotiating with port authorities and carriers..."
+            : "Ready to optimize shipping routes",
+      },
+      {
+        id: "compliance",
+        status: t > 30 && t < 38 ? "thinking" : t >= 38 ? "completed" : "idle",
+        lastAction: t >= 38
+          ? "Validated alternative routes against 89 international regulations"
+          : t > 30
+            ? "Checking OFAC, UN sanctions lists for route compliance..."
+            : "Awaiting regulatory validation requests",
+      },
+      {
+        id: "debate",
+        status: t > 40 && t < 50 ? "thinking" : t >= 50 ? "completed" : "idle",
+        lastAction: t >= 50
+          ? "Southern route cost estimates appear optimistic"
+          : t > 40
+            ? "Challenging decision logic and assumptions..."
+            : "Ready for adversarial review",
+      },
+    ]);
   }, [currentTime, isLive]);
 
+  const getAgentById = (id: string) => agents.find(a => a.id === id);
+
   return (
-    <div className="agent-workflow">
-      <h3>Multi-Agent Collaboration</h3>
-      <div className="agent-cards">
-        {agents.map((agent) => (
-          <div 
-             key={agent.id} 
-             className="agent-card-container" 
-             onClick={() => setExpandedId(expandedId === agent.id ? null : agent.id)}
-             style={{ cursor: 'pointer', marginBottom: 10, background: '#1e1e1e', padding: 10, borderRadius: 6, border: '1px solid #333' }}
-          >
-             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <span style={{ fontSize: '1.2rem' }}>{agent.icon}</span>
-                    <span style={{ fontWeight: 'bold', color: '#eee' }}>{agent.name}</span>
-                </div>
-                
-                {/* Breathing Light */}
-                <div className={`status-light ${agent.lightStatus}`} style={{
-                    width: 12, height: 12, borderRadius: '50%',
-                    background: agent.lightStatus === 'green' ? '#10B981' : agent.lightStatus === 'red' ? '#EF4444' : agent.lightStatus === 'blue' ? '#3B82F6' : '#555',
-                    boxShadow: agent.lightStatus !== 'off' ? `0 0 10px ${agent.lightStatus === 'green' ? '#10B981' : agent.lightStatus === 'red' ? '#EF4444' : '#3B82F6'}` : 'none',
-                    animation: agent.lightStatus !== 'off' ? 'pulse 2s infinite' : 'none'
-                }}></div>
-             </div>
-
-             {/* Progress Bar (Mini) */}
-             <div style={{ height: 4, background: '#333', marginTop: 8, borderRadius: 2, overflow: 'hidden' }}>
-                 <div style={{ height: '100%', width: `${agent.progress}%`, background: agent.lightStatus === 'red' ? '#EF4444' : '#0078D4', transition: 'width 0.5s' }}></div>
-             </div>
-
-             {/* Description (Collapsible) */}
-             {expandedId === agent.id && (
-                 <div style={{ marginTop: 8, fontSize: '0.85rem', color: '#aaa', borderTop: '1px solid #333', paddingTop: 5 }}>
-                     {agent.description}
-                 </div>
-             )}
-             
-             {/* Status Text (Always visible but small) */}
-             <div style={{ marginTop: 4, fontSize: '0.75rem', color: '#666' }}>
-                  {agent.status === 'working' ? 'Working...' : agent.status === 'complete' ? 'Completed' : 'Idle'}
-             </div>
-          </div>
-        ))}
+    <div className="p-4 border-b border-[#1a2332] box-border">
+      <div className="flex items-center gap-2 mb-4 box-border">
+        <div className="w-1.5 h-1.5 rounded-full bg-[#4a90e2]" />
+        <h2 className="text-xs font-semibold text-white/60 tracking-wider uppercase leading-tight text-left m-0 p-0">
+          Multi-Agent Collaboration
+        </h2>
       </div>
-      <style>{`
-        @keyframes pulse {
-            0% { opacity: 0.6; transform: scale(0.95); }
-            50% { opacity: 1; transform: scale(1.1); }
-            100% { opacity: 0.6; transform: scale(0.95); }
-        }
-      `}</style>
+
+      <div className="space-y-3 box-border">
+        <AIAgentCard
+          icon={AlertTriangle}
+          name="Market Sentinel"
+          role="Geopolitical risk detection"
+          status={getAgentById("market_sentinel")?.status || "idle"}
+          lastAction={getAgentById("market_sentinel")?.lastAction || ""}
+        />
+
+        <AIAgentCard
+          icon={TrendingUp}
+          name="Risk Hedger"
+          role="Financial exposure management"
+          status={getAgentById("risk_hedger")?.status || "idle"}
+          lastAction={getAgentById("risk_hedger")?.lastAction || ""}
+        />
+
+        <AIAgentCard
+          icon={Package}
+          name="Logistics Orchestrator"
+          role="Route optimization"
+          status={getAgentById("logistics")?.status || "idle"}
+          lastAction={getAgentById("logistics")?.lastAction || ""}
+        />
+
+        <AIAgentCard
+          icon={Shield}
+          name="Compliance Manager"
+          role="Regulatory validation"
+          status={getAgentById("compliance")?.status || "idle"}
+          lastAction={getAgentById("compliance")?.lastAction || ""}
+        />
+
+        <AIAgentCard
+          icon={GitBranch}
+          name="Adversarial Debate"
+          role="Challenge assumptions"
+          status={getAgentById("debate")?.status || "idle"}
+          lastAction={getAgentById("debate")?.lastAction || ""}
+          isAdversarial
+        />
+      </div>
     </div>
   );
 };

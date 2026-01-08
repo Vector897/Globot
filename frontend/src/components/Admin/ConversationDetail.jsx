@@ -4,7 +4,7 @@ import { Card, Timeline, Button, Tag, Spin, Empty, message as antMessage, Descri
 import { ArrowLeftOutlined, RobotOutlined, UserOutlined } from '@ant-design/icons';
 import ReactMarkdown from 'react-markdown';
 import { chatAPI } from '../../services/api';
-import './ConversationDetail.css';
+import styles from './ConversationDetail.module.css';
 
 const ConversationDetail = () => {
   const { customerId } = useParams();
@@ -105,19 +105,19 @@ const ConversationDetail = () => {
                     }
                     color={message.sender === 'CUSTOMER' ? 'blue' : 'green'}
                   >
-                    <div className="message-item">
-                      <div className="message-header">
+                    <div className={styles.messageItem}>
+                      <div className={styles.messageHeader}>
                         <Tag color={message.sender === 'CUSTOMER' ? 'blue' : 'green'}>
                           {message.sender === 'CUSTOMER' ? '客户' : 'AI'}
                         </Tag>
-                        <span className="message-time">
+                        <span className={styles.messageTime}>
                           {new Date(message.created_at).toLocaleString('zh-CN')}
                         </span>
                         {message.ai_confidence !== undefined && (
                           <Tag>置信度: {(message.ai_confidence * 100).toFixed(0)}%</Tag>
                         )}
                       </div>
-                      <div className="message-content">
+                      <div className={styles.messageContent}>
                         {message.sender === 'AI' ? (
                           <ReactMarkdown>{message.content}</ReactMarkdown>
                         ) : (

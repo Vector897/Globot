@@ -4,7 +4,7 @@ import { EyeOutlined, ReloadOutlined, ClockCircleOutlined, CheckCircleOutlined }
 import { useNavigate } from 'react-router-dom';
 import { chatAPI } from '../../services/api';
 import HandoffStats from './HandoffStats';
-import './HandoffQueue.css';
+import styles from './HandoffQueue.module.css';
 
 const HandoffQueue = () => {
   const [handoffs, setHandoffs] = useState([]);
@@ -156,7 +156,7 @@ const HandoffQueue = () => {
   const processingCount = handoffs.filter(h => h.status === 'processing').length;
 
   return (
-    <div className="handoff-queue" style={{ padding: 24 }}>
+    <div className={styles.handoffQueue} style={{ padding: 24 }}>
       {/* 统计面板 */}
       <HandoffStats />
       
