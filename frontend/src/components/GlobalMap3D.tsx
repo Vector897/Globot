@@ -44,10 +44,20 @@ export function GlobalMap3D({ origin, destination, onRouteSelect, onRoutesCalcul
   }, []);
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      setPulseOpacity((prev) => (prev === 0.6 ? 1 : 0.6));
-    }, 2000);
-    return () => clearInterval(interval);
+    let animationFrameId: number;
+    let lastTime = performance.now();
+    const interval = 2000;
+
+    const animate = (time: number) => {
+      if (time - lastTime >= interval) {
+        setPulseOpacity((prev) => (prev === 0.6 ? 1 : 0.6));
+        lastTime = time;
+      }
+      animationFrameId = requestAnimationFrame(animate);
+    };
+
+    animationFrameId = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(animationFrameId);
   }, []);
 
   // Calculate routes when origin and destination change

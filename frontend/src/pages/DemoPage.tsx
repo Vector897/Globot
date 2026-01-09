@@ -118,11 +118,18 @@ export const DemoPage: React.FC = () => {
   const [executionSummary, setExecutionSummary] = useState<ExecutionSummary | null>(null);
   const [awaitingConfirmation, setAwaitingConfirmation] = useState(false);
 
-  // === Resizable Sidebar ===
+  // === Resizable Right Sidebar ===
   const [sidebarWidth, setSidebarWidth] = useState(420);
   const isResizing = useRef(false);
   const minWidth = 320;
   const maxWidth = 600;
+
+  // === Resizable Bottom Panel ===
+  const [bottomHeight, setBottomHeight] = useState(220);
+  const isResizingBottom = useRef(false);
+  const minBottomHeight = 120;
+  const maxBottomHeight = 400;
+  const mapContainerRef = useRef<HTMLDivElement>(null);
 
   const handleMouseDown = useCallback(() => {
     isResizing.current = true;
@@ -130,14 +137,27 @@ export const DemoPage: React.FC = () => {
     document.body.style.userSelect = 'none';
   }, []);
 
+  const handleBottomMouseDown = useCallback(() => {
+    isResizingBottom.current = true;
+    document.body.style.cursor = 'row-resize';
+    document.body.style.userSelect = 'none';
+  }, []);
+
   const handleMouseMove = useCallback((e: MouseEvent) => {
-    if (!isResizing.current) return;
-    const newWidth = window.innerWidth - e.clientX;
-    setSidebarWidth(Math.min(maxWidth, Math.max(minWidth, newWidth)));
+    if (isResizing.current) {
+      const newWidth = window.innerWidth - e.clientX;
+      setSidebarWidth(Math.min(maxWidth, Math.max(minWidth, newWidth)));
+    }
+    if (isResizingBottom.current && mapContainerRef.current) {
+      const containerRect = mapContainerRef.current.getBoundingClientRect();
+      const newHeight = containerRect.bottom - e.clientY;
+      setBottomHeight(Math.min(maxBottomHeight, Math.max(minBottomHeight, newHeight)));
+    }
   }, []);
 
   const handleMouseUp = useCallback(() => {
     isResizing.current = false;
+    isResizingBottom.current = false;
     document.body.style.cursor = '';
     document.body.style.userSelect = '';
   }, []);
@@ -474,7 +494,7 @@ export const DemoPage: React.FC = () => {
       {/* Main content */}
       <div className="flex-1 flex overflow-hidden min-h-0">
         {/* Map section */}
-        <div className="flex-1 flex flex-col relative min-h-0 overflow-hidden">
+        <div ref={mapContainerRef} className="flex-1 flex flex-col relative min-h-0 overflow-hidden">
           <div className="flex-1 relative min-h-0 overflow-hidden">
             {/* Route Selector */}
             {routes.length > 0 && (
@@ -500,8 +520,16 @@ export const DemoPage: React.FC = () => {
             )}
           </div>
 
+          {/* Resize Handle for Bottom Panel */}
+          <div
+            className="h-1 cursor-row-resize hover:bg-[#4a90e2] transition-colors z-10 group flex items-center justify-center"
+            onMouseDown={handleBottomMouseDown}
+          >
+            <div className="w-16 h-1 bg-[#1a2332] group-hover:bg-[#4a90e2] rounded-full transition-colors" />
+          </div>
+
           {/* Timeline */}
-          <div className="h-[220px] shrink-0">
+          <div className="shrink-0" style={{ height: bottomHeight }}>
             <CrisisTimeline />
           </div>
         </div>
