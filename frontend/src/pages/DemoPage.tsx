@@ -109,6 +109,11 @@ export const DemoPage: React.FC = () => {
   const [selectedRoute, setSelectedRoute] = useState<Route | null>(null);
   const [routes, setRoutes] = useState<Route[]>([]);
 
+  // === Market Sentinel State ===
+  const [marketSentinelData, setMarketSentinelData] = useState<MarketSentinelResponse | null>(null);
+  const [marketSentinelLoading, setMarketSentinelLoading] = useState(false);
+  const [marketSentinelError, setMarketSentinelError] = useState<string | null>(null);
+
   // === CoT State Management ===
   const [cotSteps, setCotSteps] = useState<CoTStep[]>([]);
   const [activeStepIndex, setActiveStepIndex] = useState(-1);

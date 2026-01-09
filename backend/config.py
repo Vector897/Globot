@@ -65,11 +65,7 @@ class Settings(BaseSettings):
     # 系统配置
     log_level: str = "INFO"
     debug: bool = True
-    
-    class Config:
-        env_file = ".env"
-        case_sensitive = False
-        extra = "ignore"  # Allow extra env vars (demo_mode, azure_*, etc.)
+
 
 @lru_cache()
 def get_settings() -> Settings:
