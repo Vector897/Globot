@@ -88,19 +88,28 @@ export function ReasoningStep({
       return;
     }
     
-    let index = 0;
-    setDisplayedContent('');
-    
-    const interval = setInterval(() => {
-      if (index < content.length) {
-        setDisplayedContent(content.slice(0, index + 1));
-        index++;
+    let animationFrameId: number;
+    let startTime: number | null = null;
+    const charDelay = 30; // 30ms per character
+
+    const animate = (timestamp: number) => {
+      if (!startTime) startTime = timestamp;
+      const elapsed = timestamp - startTime;
+      const charCount = Math.floor(elapsed / charDelay);
+
+      if (charCount <= content.length) {
+        setDisplayedContent(content.slice(0, charCount));
+        animationFrameId = requestAnimationFrame(animate);
       } else {
-        clearInterval(interval);
+        setDisplayedContent(content);
       }
-    }, 30); // 30ms per character
+    };
+
+    animationFrameId = requestAnimationFrame(animate);
     
-    return () => clearInterval(interval);
+    return () => {
+      if (animationFrameId) cancelAnimationFrame(animationFrameId);
+    };
   }, [content, showTypewriter, isActive]);
 
   // Confidence color

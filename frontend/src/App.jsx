@@ -4,13 +4,15 @@ import { ConfigProvider } from 'antd';
 import zhCN from 'antd/locale/zh_CN';
 import './App.css';
 import { DemoPage } from './pages/DemoPage';
+import { PaymentPage } from './pages/PaymentPage';
 
 function App() {
   return (
     <ConfigProvider locale={zhCN}>
       <BrowserRouter>
         <Routes>
-           <Route path="/" element={<div><h1>✅ Router & Antd Working</h1></div>} />
+           <Route path="/" element={<Navigate to="/pay" replace />} />
+           <Route path="/pay" element={<PaymentPage />} />
            <Route path="/demo" element={<DemoPage />} />
            {/* Admin routes disabled for debug */}
         </Routes>
