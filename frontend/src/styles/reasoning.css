@@ -1,0 +1,314 @@
+﻿/**
+ * Agent Chain-of-Thought (CoT) 鍙鍖栨牱寮? * 
+ * 鍖呭惈锛? * - 鎵撳瓧鏈哄姩鐢? * - 鑴夊啿鎸囩ず鐏? * - 鐜荤拑鎬佸崱鐗囨晥鏋? * - 鏃堕棿绾胯繛鎺ュ櫒
+ * - 婊氬姩瀹瑰櫒鏍峰紡
+ */
+
+/* ========================================
+   婊氬姩瀹瑰櫒
+   ======================================== */
+.cot-scroll-container {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(74, 144, 226, 0.3) transparent;
+}
+
+.cot-scroll-container::-webkit-scrollbar {
+  width: 4px;
+}
+
+.cot-scroll-container::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.cot-scroll-container::-webkit-scrollbar-thumb {
+  background-color: rgba(74, 144, 226, 0.3);
+  border-radius: 2px;
+}
+
+.cot-scroll-container::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(74, 144, 226, 0.5);
+}
+
+/* ========================================
+   鎵撳瓧鏈哄厜鏍囧姩鐢?   ======================================== */
+@keyframes typewriter-cursor {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+}
+
+.typewriter-cursor {
+  animation: typewriter-cursor 0.8s infinite;
+}
+
+/* ========================================
+   鑴夊啿鎸囩ず鐏姩鐢?   ======================================== */
+@keyframes pulse-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(74, 144, 226, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 4px rgba(74, 144, 226, 0);
+  }
+}
+
+.pulse-indicator {
+  animation: pulse-glow 2s infinite;
+}
+
+@keyframes pulse-glow-green {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(90, 154, 122, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 4px rgba(90, 154, 122, 0);
+  }
+}
+
+.pulse-indicator-green {
+  animation: pulse-glow-green 2s infinite;
+}
+
+@keyframes pulse-glow-red {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(201, 68, 68, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 4px rgba(201, 68, 68, 0);
+  }
+}
+
+.pulse-indicator-red {
+  animation: pulse-glow-red 2s infinite;
+}
+
+@keyframes pulse-glow-purple {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(155, 89, 182, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 4px rgba(155, 89, 182, 0);
+  }
+}
+
+.pulse-indicator-purple {
+  animation: pulse-glow-purple 2s infinite;
+}
+
+/* ========================================
+   鍛煎惛鏁堟灉
+   ======================================== */
+@keyframes breathing {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.8;
+  }
+  50% {
+    transform: scale(1.05);
+    opacity: 1;
+  }
+}
+
+.breathing {
+  animation: breathing 3s ease-in-out infinite;
+}
+
+/* ========================================
+   鏃堕棿绾胯繛鎺ュ櫒
+   ======================================== */
+.timeline-connector {
+  position: relative;
+}
+
+.timeline-connector::before {
+  content: "";
+  position: absolute;
+  left: 22px;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: linear-gradient(
+    to bottom,
+    transparent 0%,
+    rgba(74, 144, 226, 0.2) 10%,
+    rgba(74, 144, 226, 0.2) 90%,
+    transparent 100%
+  );
+}
+
+.timeline-connector:first-child::before {
+  top: 24px;
+}
+
+.timeline-connector:last-child::before {
+  bottom: 50%;
+}
+
+/* ========================================
+   鐜荤拑鎬佹晥鏋?   ======================================== */
+.glass-card {
+  background: rgba(15, 22, 33, 0.8);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* ========================================
+   娓愬彉杈规
+   ======================================== */
+.gradient-border {
+  position: relative;
+}
+
+.gradient-border::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(
+    135deg,
+    rgba(74, 144, 226, 0.3) 0%,
+    rgba(155, 89, 182, 0.3) 50%,
+    rgba(90, 154, 122, 0.3) 100%
+  );
+  -webkit-mask: 
+    linear-gradient(#fff 0 0) content-box, 
+    linear-gradient(#fff 0 0);
+  mask: 
+    linear-gradient(#fff 0 0) content-box, 
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+/* ========================================
+   Active姝ラ楂樹寒
+   ======================================== */
+.step-active {
+  position: relative;
+}
+
+.step-active::after {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  border-radius: 4px;
+  background: linear-gradient(
+    90deg,
+    rgba(74, 144, 226, 0.1) 0%,
+    transparent 50%,
+    rgba(74, 144, 226, 0.1) 100%
+  );
+  animation: scan-line 2s linear infinite;
+  pointer-events: none;
+}
+
+@keyframes scan-line {
+  0% {
+    background-position: -100% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+/* ========================================
+   杈╄瑙嗗浘鍔ㄧ敾
+   ======================================== */
+@keyframes slide-in-left {
+  from {
+    transform: translateX(-20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slide-in-right {
+  from {
+    transform: translateX(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.debate-challenge {
+  animation: slide-in-left 0.3s ease-out;
+}
+
+.debate-response {
+  animation: slide-in-right 0.3s ease-out;
+}
+
+/* ========================================
+   鍐崇瓥鍗＄墖
+   ======================================== */
+.decision-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.decision-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(90, 154, 122, 0.1) 50%,
+    transparent 100%
+  );
+  animation: shine 3s ease-in-out infinite;
+}
+
+@keyframes shine {
+  0% {
+    left: -100%;
+  }
+  50% {
+    left: 100%;
+  }
+  100% {
+    left: 100%;
+  }
+}
+
+/* ========================================
+   Azure寰界珷
+   ======================================== */
+.azure-badge {
+  background: linear-gradient(
+    135deg,
+    rgba(0, 120, 212, 0.1) 0%,
+    rgba(0, 120, 212, 0.05) 100%
+  );
+  border: 1px solid rgba(0, 120, 212, 0.2);
+}
+
+.azure-badge:hover {
+  background: linear-gradient(
+    135deg,
+    rgba(0, 120, 212, 0.15) 0%,
+    rgba(0, 120, 212, 0.1) 100%
+  );
+  border-color: rgba(0, 120, 212, 0.3);
+}

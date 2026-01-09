@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { useWebSocket } from '../services/websocket';
 
 import { GlobalMap2D } from '../components/GlobalMap2D';
@@ -9,9 +9,11 @@ import { DemoStartScreen } from '../components/DemoStartScreen';
 
 import { AzureBadges } from '../components/AzureBadges';
 import { AgentWorkflow } from '../components/AgentWorkflow';
+import { AgentCoTPanel } from '../components/AgentCoTPanel';
 
 import { Route, GlobalPort } from '../utils/routeCalculator';
-import { Globe, Map, RefreshCw, Shield, Radar } from 'lucide-react';
+import { Globe, Map, RefreshCw, Shield, Brain } from 'lucide-react';
+
 import { 
   MarketSentinelResponse, 
   runSimpleAnalysis, 
@@ -19,8 +21,81 @@ import {
   createLaneWatchlist 
 } from '../services/marketSentinel';
 
+// CoT Type Definitions
+interface RAGSource {
+  document_id: string;
+  title: string;
+  section?: string;
+  content_snippet?: string;
+  relevance_score: number;
+  azure_service: string;
+}
+
+interface CoTStep {
+  step_id: string;
+  agent_id: string;
+  action: string;
+  title: string;
+  content: string;
+  confidence: number;
+  azure_service: string;
+  sources?: RAGSource[];
+  duration_ms?: number;
+}
+
+interface DebateExchange {
+  exchange_id: string;
+  challenger_agent: string;
+  defender_agent: string;
+  challenge: string;
+  challenge_reason: string;
+  response?: string;
+  resolution?: string;
+  resolution_accepted?: boolean;
+  sources?: RAGSource[];
+}
+
+interface FinalDecision {
+  decision_id: string;
+  final_recommendation: string;
+  recommendation_details?: {
+    route_change?: string;
+    additional_days?: number;
+    additional_cost?: string;
+    risk_reduction?: string;
+    savings?: string;
+  };
+  total_duration_ms?: number;
+  approval_options?: Array<{
+    id: string;
+    label: string;
+    action: string;
+  }>;
+}
+
+// Execution types (NEW)
+interface ExecutionStep {
+  step_id: string;
+  action: string;
+  title: string;
+  description: string;
+  azure_service: string;
+  duration_ms: number;
+  status?: 'pending' | 'executing' | 'complete';
+}
+
+interface ExecutionSummary {
+  total_steps: number;
+  total_duration_ms: number;
+  actions_completed: string[];
+  final_status: string;
+  risk_score_before: number;
+  risk_score_after: number;
+  estimated_savings: string;
+}
+
 export const DemoPage: React.FC = () => {
-  const { connect } = useWebSocket();
+  const { connect, events } = useWebSocket();
 
   const [demoStarted, setDemoStarted] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -34,10 +109,74 @@ export const DemoPage: React.FC = () => {
   const [selectedRoute, setSelectedRoute] = useState<Route | null>(null);
   const [routes, setRoutes] = useState<Route[]>([]);
 
-  // Market Sentinel state
-  const [marketSentinelData, setMarketSentinelData] = useState<MarketSentinelResponse | null>(null);
-  const [marketSentinelLoading, setMarketSentinelLoading] = useState(false);
-  const [marketSentinelError, setMarketSentinelError] = useState<string | null>(null);
+  // === CoT State Management ===
+  const [cotSteps, setCotSteps] = useState<CoTStep[]>([]);
+  const [activeStepIndex, setActiveStepIndex] = useState(-1);
+  const [debates, setDebates] = useState<DebateExchange[]>([]);
+  const [activeDebateIndex, setActiveDebateIndex] = useState(0);
+  const [debatePhase, setDebatePhase] = useState<'challenge' | 'response' | 'resolve' | 'complete'>('challenge');
+  const [finalDecision, setFinalDecision] = useState<FinalDecision | null>(null);
+  const [isCotActive, setIsCotActive] = useState(false);
+
+  // === Execution State (NEW) ===
+  const [executionSteps, setExecutionSteps] = useState<ExecutionStep[]>([]);
+  const [activeExecutionIndex, setActiveExecutionIndex] = useState(-1);
+  const [executionPhase, setExecutionPhase] = useState<'pending' | 'executing' | 'complete'>('pending');
+  const [executionSummary, setExecutionSummary] = useState<ExecutionSummary | null>(null);
+  const [awaitingConfirmation, setAwaitingConfirmation] = useState(false);
+
+  // === Resizable Right Sidebar ===
+  const [sidebarWidth, setSidebarWidth] = useState(420);
+  const isResizing = useRef(false);
+  const minWidth = 320;
+  const maxWidth = 600;
+
+  // === Resizable Bottom Panel ===
+  const [bottomHeight, setBottomHeight] = useState(220);
+  const isResizingBottom = useRef(false);
+  const minBottomHeight = 120;
+  const maxBottomHeight = 400;
+  const mapContainerRef = useRef<HTMLDivElement>(null);
+
+  const handleMouseDown = useCallback(() => {
+    isResizing.current = true;
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+  }, []);
+
+  const handleBottomMouseDown = useCallback(() => {
+    isResizingBottom.current = true;
+    document.body.style.cursor = 'row-resize';
+    document.body.style.userSelect = 'none';
+  }, []);
+
+  const handleMouseMove = useCallback((e: MouseEvent) => {
+    if (isResizing.current) {
+      const newWidth = window.innerWidth - e.clientX;
+      setSidebarWidth(Math.min(maxWidth, Math.max(minWidth, newWidth)));
+    }
+    if (isResizingBottom.current && mapContainerRef.current) {
+      const containerRect = mapContainerRef.current.getBoundingClientRect();
+      const newHeight = containerRect.bottom - e.clientY;
+      setBottomHeight(Math.min(maxBottomHeight, Math.max(minBottomHeight, newHeight)));
+    }
+  }, []);
+
+  const handleMouseUp = useCallback(() => {
+    isResizing.current = false;
+    isResizingBottom.current = false;
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
+  }, []);
+
+  useEffect(() => {
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [handleMouseMove, handleMouseUp]);
 
   // Clock only runs while demo is started
   useEffect(() => {
@@ -45,6 +184,148 @@ export const DemoPage: React.FC = () => {
     const interval = setInterval(() => setCurrentTime((prev) => prev + 1), 1000);
     return () => clearInterval(interval);
   }, [demoStarted]);
+
+  // === WebSocket Event Handlers ===
+  useEffect(() => {
+    if (events.length === 0) return;
+    
+    const latestEvent = events[events.length - 1];
+    console.log('[CoT Event]', latestEvent.type, latestEvent);
+
+    switch (latestEvent.type) {
+      case 'COT_START':
+        setIsCotActive(true);
+        setCotSteps([]);
+        setActiveStepIndex(-1);
+        break;
+
+      case 'COT_STEP':
+        const stepData = latestEvent.data as CoTStep;
+        setCotSteps(prev => [...prev, stepData]);
+        setActiveStepIndex(latestEvent.step_index);
+        break;
+
+      case 'RAG_CITATION':
+        // RAG citation is included in COT_STEP, this can be used for additional highlighting
+        break;
+
+      case 'DEBATE_START':
+        setDebates([]);
+        setActiveDebateIndex(0);
+        setDebatePhase('challenge');
+        break;
+
+      case 'DEBATE_CHALLENGE':
+        const challengeData = latestEvent.data;
+        setDebates(prev => {
+          const existing = [...prev];
+          if (!existing[latestEvent.exchange_index]) {
+            existing[latestEvent.exchange_index] = {
+              exchange_id: challengeData.exchange_id,
+              challenger_agent: challengeData.challenger,
+              defender_agent: challengeData.defender,
+              challenge: challengeData.challenge,
+              challenge_reason: challengeData.reason,
+            };
+          }
+          return existing;
+        });
+        setActiveDebateIndex(latestEvent.exchange_index);
+        setDebatePhase('challenge');
+        break;
+
+      case 'DEBATE_RESPONSE':
+        const responseData = latestEvent.data;
+        setDebates(prev => {
+          const updated = [...prev];
+          if (updated[latestEvent.exchange_index]) {
+            updated[latestEvent.exchange_index] = {
+              ...updated[latestEvent.exchange_index],
+              response: responseData.response,
+            };
+          }
+          return updated;
+        });
+        setDebatePhase('response');
+        break;
+
+      case 'DEBATE_RESOLVE':
+        const resolveData = latestEvent.data;
+        setDebates(prev => {
+          const updated = [...prev];
+          if (updated[latestEvent.exchange_index]) {
+            updated[latestEvent.exchange_index] = {
+              ...updated[latestEvent.exchange_index],
+              resolution: resolveData.resolution,
+              resolution_accepted: resolveData.accepted,
+              sources: resolveData.sources,
+            };
+          }
+          return updated;
+        });
+        setDebatePhase('resolve');
+        break;
+
+      case 'DECISION_READY':
+        const decisionData = latestEvent.data;
+        setFinalDecision({
+          decision_id: decisionData.decision_id,
+          final_recommendation: decisionData.final_recommendation,
+          recommendation_details: decisionData.recommendation_details,
+          total_duration_ms: decisionData.total_duration_ms,
+          approval_options: decisionData.approval_options,
+        });
+        setIsCotActive(false);
+        break;
+
+      // === Execution Events (NEW) ===
+      case 'AWAITING_CONFIRMATION':
+        setAwaitingConfirmation(true);
+        break;
+
+      case 'CONFIRMATION_RECEIVED':
+        setAwaitingConfirmation(false);
+        break;
+
+      case 'EXECUTION_START':
+        setExecutionPhase('executing');
+        setExecutionSteps([]);
+        setActiveExecutionIndex(-1);
+        break;
+
+      case 'EXECUTION_STEP':
+        const execStepData = latestEvent.data as ExecutionStep;
+        setExecutionSteps(prev => {
+          const existing = [...prev];
+          if (!existing.find(s => s.step_id === execStepData.step_id)) {
+            existing.push({ ...execStepData, status: 'executing' });
+          }
+          return existing;
+        });
+        setActiveExecutionIndex(latestEvent.step_index);
+        break;
+
+      case 'EXECUTION_STEP_COMPLETE':
+        setExecutionSteps(prev => {
+          return prev.map((step, idx) => 
+            idx === latestEvent.step_index 
+              ? { ...step, status: 'complete' as const }
+              : step
+          );
+        });
+        break;
+
+      case 'EXECUTION_COMPLETE':
+        setExecutionPhase('complete');
+        setExecutionSummary(latestEvent.data as ExecutionSummary);
+        setActiveExecutionIndex(-1);
+        break;
+
+      case 'DEMO_COMPLETE':
+        setIsCotActive(false);
+        break;
+    }
+  }, [events]);
 
   const scenarioPhase = useMemo(() => {
     const t = currentTime % 60;
@@ -85,9 +366,41 @@ export const DemoPage: React.FC = () => {
     setRoutes([]);
     setSelectedRoute(null);
 
+    // Reset CoT state
+    setCotSteps([]);
+    setActiveStepIndex(-1);
+    setDebates([]);
+    setActiveDebateIndex(0);
+    setDebatePhase('challenge');
+    setFinalDecision(null);
+    setIsCotActive(false);
+
+    // Reset Execution state (NEW)
+    setExecutionSteps([]);
+    setActiveExecutionIndex(-1);
+    setExecutionPhase('pending');
+    setExecutionSummary(null);
+    setAwaitingConfirmation(false);
+
     setCurrentTime(0);
 
     await startBackendDemo();
+  };
+
+  // Handle user confirmation of decision (NEW)
+  const handleConfirmDecision = async (action: string) => {
+    console.log('[Decision Confirmation]', action);
+    // In a real app, this would send the action to the backend
+    // For demo, the backend auto-confirms after a delay
+    try {
+      await fetch('http://localhost:8000/api/v2/demo/confirm', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action }),
+      });
+    } catch (e) {
+      console.warn('Confirm endpoint not available, auto-proceeding', e);
+    }
   };
 
   const handleRouteSelect = (route: Route) => {
@@ -194,15 +507,13 @@ export const DemoPage: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-3 shrink-0">
-          {/* Run Market Sentinel Button */}
-          <button
-            onClick={runMarketSentinel}
-            disabled={marketSentinelLoading}
-            className="px-3 py-1.5 rounded-sm text-xs font-medium transition-all flex items-center gap-2 bg-[#4a90e2]/10 border border-[#4a90e2]/30 text-[#4a90e2] hover:bg-[#4a90e2]/20 hover:border-[#4a90e2]/50 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <Radar className={`w-3.5 h-3.5 ${marketSentinelLoading ? 'animate-spin' : ''}`} strokeWidth={2} />
-            {marketSentinelLoading ? 'Scanning...' : 'Market Sentinel'}
-          </button>
+          {/* CoT Active Indicator */}
+          {isCotActive && (
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-[#4a90e2]/20 border border-[#4a90e2]/30 rounded-sm animate-pulse">
+              <Brain className="w-3.5 h-3.5 text-[#4a90e2]" />
+              <span className="text-xs text-[#4a90e2] font-medium">CoT Active</span>
+            </div>
+          )}
 
           {/* Change Route Button */}
           <button
@@ -249,7 +560,7 @@ export const DemoPage: React.FC = () => {
       {/* Main content */}
       <div className="flex-1 flex overflow-hidden min-h-0">
         {/* Map section */}
-        <div className="flex-1 flex flex-col relative min-h-0 overflow-hidden">
+        <div ref={mapContainerRef} className="flex-1 flex flex-col relative min-h-0 overflow-hidden">
           <div className="flex-1 relative min-h-0 overflow-hidden">
             {/* Route Selector */}
             {routes.length > 0 && (
@@ -275,17 +586,53 @@ export const DemoPage: React.FC = () => {
             )}
           </div>
 
+          {/* Resize Handle for Bottom Panel */}
+          <div
+            className="h-1 cursor-row-resize hover:bg-[#4a90e2] transition-colors z-10 group flex items-center justify-center"
+            onMouseDown={handleBottomMouseDown}
+          >
+            <div className="w-16 h-1 bg-[#1a2332] group-hover:bg-[#4a90e2] rounded-full transition-colors" />
+          </div>
+
           {/* Timeline */}
-          <div className="h-[220px] shrink-0">
+          <div className="shrink-0" style={{ height: bottomHeight }}>
             <CrisisTimeline />
           </div>
         </div>
 
-        {/* Right sidebar */}
-        <div className="w-[380px] bg-[#0a0e1a] border-l border-[#1a2332] flex flex-col overflow-hidden">
-          <div className="flex-1 overflow-y-auto pr-2">
+        {/* Resizable Right Sidebar */}
+        <div 
+          className="bg-[#0a0e1a] border-l border-[#1a2332] flex flex-col overflow-hidden relative"
+          style={{ width: sidebarWidth }}
+        >
+          {/* Resize Handle */}
+          <div
+            className="absolute left-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-[#4a90e2] transition-colors z-10 group"
+            onMouseDown={handleMouseDown}
+          >
+            <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-16 bg-[#1a2332] group-hover:bg-[#4a90e2] rounded-full transition-colors" />
+          </div>
+          
+          <div className="flex-1 overflow-y-auto pr-2 pl-2">
             {/* Azure stack badges */}
             <AzureBadges />
+
+            {/* Chain-of-Thought Panel */}
+            <AgentCoTPanel
+              steps={cotSteps}
+              debates={debates}
+              decision={finalDecision}
+              activeStepIndex={activeStepIndex}
+              activeDebateIndex={activeDebateIndex}
+              debatePhase={debatePhase}
+              isActive={isCotActive}
+              executionSteps={executionSteps}
+              activeExecutionIndex={activeExecutionIndex}
+              executionPhase={executionPhase}
+              executionSummary={executionSummary}
+              awaitingConfirmation={awaitingConfirmation}
+              onConfirmDecision={handleConfirmDecision}
+            />
 
             {/* Agent workflow */}
             <AgentWorkflow 
@@ -302,3 +649,4 @@ export const DemoPage: React.FC = () => {
     </div>
   );
 };
+

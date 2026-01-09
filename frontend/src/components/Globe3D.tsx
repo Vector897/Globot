@@ -26,10 +26,20 @@ export const Globe3D: React.FC<Globe3DProps> = ({ ports, routes }) => {
   const [flash, setFlash] = React.useState(true);
 
   React.useEffect(() => {
-    const timer = setInterval(() => {
-      setFlash(prev => !prev);
-    }, 500);
-    return () => clearInterval(timer);
+    let animationFrameId: number;
+    let lastTime = performance.now();
+    const interval = 500;
+
+    const animate = (time: number) => {
+      if (time - lastTime >= interval) {
+        setFlash(prev => !prev);
+        lastTime = time;
+      }
+      animationFrameId = requestAnimationFrame(animate);
+    };
+
+    animationFrameId = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(animationFrameId);
   }, []);
 
   const layers = [
