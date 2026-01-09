@@ -1,9 +1,13 @@
 ﻿/**
- * AgentCoTPanel - Agent Chain-of-Thought 涓婚潰鏉? *
- * 闆嗘垚鏄剧ず锛? * - 瀹炴椂鎺ㄧ悊姝ラ娴侊紙鎵撳瓧鏈烘晥鏋滐級
- * - 瀵规姉杈╄瑙嗗浘
- * - 鏈€缁堝喅绛栧崱鐗? *
- * 鐢ㄤ簬鍚慖magine Cup璇勫灞曠ず閫忔槑鍙拷婧殑AI鍐崇瓥杩囩▼
+ * AgentCoTPanel - Agent Chain-of-Thought Main Panel
+ *
+ * Integrated display:
+ * - Real-time reasoning step stream (typewriter effect)
+ * - Adversarial debate view
+ * - Final decision card
+ * - Execution progress view (NEW)
+ *
+ * Used to demonstrate transparent and traceable AI decision-making to Imagine Cup judges
  */
 
 import React, { useState, useEffect, useRef } from "react";
@@ -16,12 +20,17 @@ import {
   ChevronDown,
   ChevronUp,
   Activity,
+  Rocket,
+  Check,
+  FileText,
+  UserCog,
 } from "lucide-react";
 import { ReasoningStep } from "./ReasoningStep";
 import { DebateView } from "./DebateView";
+import { ExecutionView } from "./ExecutionView";
 import "../styles/reasoning.css";
 
-// 绫诲瀷瀹氫箟
+// Type Definitions
 interface RAGSource {
   document_id: string;
   title: string;
@@ -66,6 +75,31 @@ interface FinalDecision {
     savings?: string;
   };
   total_duration_ms?: number;
+  approval_options?: Array<{
+    id: string;
+    label: string;
+    action: string;
+  }>;
+}
+
+interface ExecutionStep {
+  step_id: string;
+  action: string;
+  title: string;
+  description: string;
+  azure_service: string;
+  duration_ms: number;
+  status?: "pending" | "executing" | "complete";
+}
+
+interface ExecutionSummary {
+  total_steps: number;
+  total_duration_ms: number;
+  actions_completed: string[];
+  final_status: string;
+  risk_score_before: number;
+  risk_score_after: number;
+  estimated_savings: string;
 }
 
 interface AgentCoTPanelProps {
@@ -76,9 +110,16 @@ interface AgentCoTPanelProps {
   activeDebateIndex?: number;
   debatePhase?: "challenge" | "response" | "resolve" | "complete";
   isActive?: boolean;
+  // NEW: Execution props
+  executionSteps?: ExecutionStep[];
+  activeExecutionIndex?: number;
+  executionPhase?: "pending" | "executing" | "complete";
+  executionSummary?: ExecutionSummary | null;
+  awaitingConfirmation?: boolean;
+  onConfirmDecision?: (action: string) => void;
 }
 
-type TabType = "stream" | "debate" | "decision";
+type TabType = "stream" | "debate" | "decision" | "execution";
 
 export function AgentCoTPanel({
   steps = [],
@@ -88,6 +129,13 @@ export function AgentCoTPanel({
   activeDebateIndex = 0,
   debatePhase = "challenge",
   isActive = false,
+  // NEW
+  executionSteps = [],
+  activeExecutionIndex = -1,
+  executionPhase = "pending",
+  executionSummary = null,
+  awaitingConfirmation = false,
+  onConfirmDecision,
 }: AgentCoTPanelProps) {
   const [activeTab, setActiveTab] = useState<TabType>("stream");
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -102,10 +150,17 @@ export function AgentCoTPanel({
 
   // Auto switch to decision tab
   useEffect(() => {
-    if (decision) {
+    if (decision && executionSteps.length === 0) {
       setActiveTab("decision");
     }
-  }, [decision]);
+  }, [decision, executionSteps.length]);
+
+  // Auto switch to execution tab
+  useEffect(() => {
+    if (executionSteps.length > 0 || executionPhase !== "pending") {
+      setActiveTab("execution");
+    }
+  }, [executionSteps.length, executionPhase]);
 
   // Auto scroll to latest step
   useEffect(() => {
@@ -138,6 +193,12 @@ export function AgentCoTPanel({
       label: "Decision",
       icon: <CheckCircle2 className="w-3.5 h-3.5" />,
     },
+    {
+      id: "execution",
+      label: "Execution",
+      icon: <Rocket className="w-3.5 h-3.5" />,
+      count: executionSteps.length > 0 ? executionSteps.length : undefined,
+    },
   ];
 
   return (
@@ -150,7 +211,7 @@ export function AgentCoTPanel({
         <div className="flex items-center gap-2">
           <div className="relative">
             <Brain className="w-4 h-4 text-[#4a90e2]" />
-            {isActive && (
+            {(isActive || executionPhase === "executing") && (
               <motion.div
                 className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-[#4a90e2]"
                 animate={{ scale: [1, 1.2, 1], opacity: [1, 0.7, 1] }}
@@ -165,6 +226,18 @@ export function AgentCoTPanel({
             <span className="flex items-center gap-1 text-[10px] text-[#4a90e2] bg-[#4a90e2]/10 px-2 py-0.5 rounded-sm">
               <Activity className="w-3 h-3" />
               LIVE
+            </span>
+          )}
+          {executionPhase === "executing" && (
+            <span className="flex items-center gap-1 text-[10px] text-[#f5a623] bg-[#f5a623]/10 px-2 py-0.5 rounded-sm">
+              <Rocket className="w-3 h-3" />
+              EXECUTING
+            </span>
+          )}
+          {executionPhase === "complete" && (
+            <span className="flex items-center gap-1 text-[10px] text-[#5a9a7a] bg-[#5a9a7a]/10 px-2 py-0.5 rounded-sm">
+              <CheckCircle2 className="w-3 h-3" />
+              COMPLETE
             </span>
           )}
         </div>
@@ -358,8 +431,59 @@ export function AgentCoTPanel({
                           </span>
                         </div>
                       )}
+
+                      {/* Human-in-the-Loop Confirmation Buttons */}
+                      {onConfirmDecision && executionPhase === "pending" && (
+                        <motion.div
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          className="mt-4 pt-4 border-t border-[#1a2332]"
+                        >
+                          <div className="flex items-center justify-center gap-2 mb-3">
+                            <div className="w-2 h-2 rounded-full bg-[#f5a623] animate-pulse" />
+                            <p className="text-[10px] text-[#f5a623] font-medium uppercase tracking-wider">
+                              Human Approval Required
+                            </p>
+                          </div>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => onConfirmDecision("approve")}
+                              className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-[#5a9a7a] hover:bg-[#4a8a6a] text-white text-xs font-medium rounded-sm transition-colors"
+                            >
+                              <Check className="w-4 h-4" />
+                              Approve & Execute
+                            </button>
+                            <button
+                              onClick={() => onConfirmDecision("details")}
+                              className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-[#1a2332] hover:bg-[#252f42] text-white/70 text-xs font-medium rounded-sm transition-colors"
+                            >
+                              <FileText className="w-4 h-4" />
+                              Details
+                            </button>
+                            <button
+                              onClick={() => onConfirmDecision("manual")}
+                              className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-[#c75050] hover:bg-[#b74040] text-white text-xs font-medium rounded-sm transition-colors"
+                            >
+                              <UserCog className="w-4 h-4" />
+                              Override
+                            </button>
+                          </div>
+                        </motion.div>
+                      )}
                     </motion.div>
                   )}
+                </div>
+              )}
+
+              {/* Execution View - NEW */}
+              {activeTab === "execution" && (
+                <div className="p-4">
+                  <ExecutionView
+                    steps={executionSteps}
+                    activeStepIndex={activeExecutionIndex}
+                    summary={executionSummary}
+                    phase={executionPhase}
+                  />
                 </div>
               )}
             </div>

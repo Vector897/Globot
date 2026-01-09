@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useMemo, useState, useCallback } from 'react';
+﻿import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { useWebSocket } from '../services/websocket';
 
 import { GlobalMap2D } from '../components/GlobalMap2D';
@@ -14,7 +14,7 @@ import { AgentCoTPanel } from '../components/AgentCoTPanel';
 import { Route, GlobalPort } from '../utils/routeCalculator';
 import { Globe, Map, RefreshCw, Shield, Brain } from 'lucide-react';
 
-// CoT 鐩稿叧绫诲瀷瀹氫箟
+// CoT Type Definitions
 interface RAGSource {
   document_id: string;
   title: string;
@@ -59,6 +59,32 @@ interface FinalDecision {
     savings?: string;
   };
   total_duration_ms?: number;
+  approval_options?: Array<{
+    id: string;
+    label: string;
+    action: string;
+  }>;
+}
+
+// Execution types (NEW)
+interface ExecutionStep {
+  step_id: string;
+  action: string;
+  title: string;
+  description: string;
+  azure_service: string;
+  duration_ms: number;
+  status?: 'pending' | 'executing' | 'complete';
+}
+
+interface ExecutionSummary {
+  total_steps: number;
+  total_duration_ms: number;
+  actions_completed: string[];
+  final_status: string;
+  risk_score_before: number;
+  risk_score_after: number;
+  estimated_savings: string;
 }
 
 export const DemoPage: React.FC = () => {
@@ -76,7 +102,7 @@ export const DemoPage: React.FC = () => {
   const [selectedRoute, setSelectedRoute] = useState<Route | null>(null);
   const [routes, setRoutes] = useState<Route[]>([]);
 
-  // === CoT 鐘舵€佺鐞?===
+  // === CoT State Management ===
   const [cotSteps, setCotSteps] = useState<CoTStep[]>([]);
   const [activeStepIndex, setActiveStepIndex] = useState(-1);
   const [debates, setDebates] = useState<DebateExchange[]>([]);
@@ -85,6 +111,46 @@ export const DemoPage: React.FC = () => {
   const [finalDecision, setFinalDecision] = useState<FinalDecision | null>(null);
   const [isCotActive, setIsCotActive] = useState(false);
 
+  // === Execution State (NEW) ===
+  const [executionSteps, setExecutionSteps] = useState<ExecutionStep[]>([]);
+  const [activeExecutionIndex, setActiveExecutionIndex] = useState(-1);
+  const [executionPhase, setExecutionPhase] = useState<'pending' | 'executing' | 'complete'>('pending');
+  const [executionSummary, setExecutionSummary] = useState<ExecutionSummary | null>(null);
+  const [awaitingConfirmation, setAwaitingConfirmation] = useState(false);
+
+  // === Resizable Sidebar ===
+  const [sidebarWidth, setSidebarWidth] = useState(420);
+  const isResizing = useRef(false);
+  const minWidth = 320;
+  const maxWidth = 600;
+
+  const handleMouseDown = useCallback(() => {
+    isResizing.current = true;
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+  }, []);
+
+  const handleMouseMove = useCallback((e: MouseEvent) => {
+    if (!isResizing.current) return;
+    const newWidth = window.innerWidth - e.clientX;
+    setSidebarWidth(Math.min(maxWidth, Math.max(minWidth, newWidth)));
+  }, []);
+
+  const handleMouseUp = useCallback(() => {
+    isResizing.current = false;
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
+  }, []);
+
+  useEffect(() => {
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [handleMouseMove, handleMouseUp]);
+
   // Clock only runs while demo is started
   useEffect(() => {
     if (!demoStarted) return;
@@ -92,7 +158,7 @@ export const DemoPage: React.FC = () => {
     return () => clearInterval(interval);
   }, [demoStarted]);
 
-  // === WebSocket浜嬩欢澶勭悊 ===
+  // === WebSocket Event Handlers ===
   useEffect(() => {
     if (events.length === 0) return;
     
@@ -113,7 +179,8 @@ export const DemoPage: React.FC = () => {
         break;
 
       case 'RAG_CITATION':
-        // RAG寮曠敤宸插寘鍚湪COT_STEP涓紝姝ゅ鍙敤浜庨澶栭珮浜?        break;
+        // RAG citation is included in COT_STEP, this can be used for additional highlighting
+        break;
 
       case 'DEBATE_START':
         setDebates([]);
@@ -179,8 +246,52 @@ export const DemoPage: React.FC = () => {
           final_recommendation: decisionData.final_recommendation,
           recommendation_details: decisionData.recommendation_details,
           total_duration_ms: decisionData.total_duration_ms,
+          approval_options: decisionData.approval_options,
         });
         setIsCotActive(false);
+        break;
+
+      // === Execution Events (NEW) ===
+      case 'AWAITING_CONFIRMATION':
+        setAwaitingConfirmation(true);
+        break;
+
+      case 'CONFIRMATION_RECEIVED':
+        setAwaitingConfirmation(false);
+        break;
+
+      case 'EXECUTION_START':
+        setExecutionPhase('executing');
+        setExecutionSteps([]);
+        setActiveExecutionIndex(-1);
+        break;
+
+      case 'EXECUTION_STEP':
+        const execStepData = latestEvent.data as ExecutionStep;
+        setExecutionSteps(prev => {
+          const existing = [...prev];
+          if (!existing.find(s => s.step_id === execStepData.step_id)) {
+            existing.push({ ...execStepData, status: 'executing' });
+          }
+          return existing;
+        });
+        setActiveExecutionIndex(latestEvent.step_index);
+        break;
+
+      case 'EXECUTION_STEP_COMPLETE':
+        setExecutionSteps(prev => {
+          return prev.map((step, idx) => 
+            idx === latestEvent.step_index 
+              ? { ...step, status: 'complete' as const }
+              : step
+          );
+        });
+        break;
+
+      case 'EXECUTION_COMPLETE':
+        setExecutionPhase('complete');
+        setExecutionSummary(latestEvent.data as ExecutionSummary);
+        setActiveExecutionIndex(-1);
         break;
 
       case 'DEMO_COMPLETE':
@@ -228,7 +339,8 @@ export const DemoPage: React.FC = () => {
     setRoutes([]);
     setSelectedRoute(null);
 
-    // 閲嶇疆CoT鐘舵€?    setCotSteps([]);
+    // Reset CoT state
+    setCotSteps([]);
     setActiveStepIndex(-1);
     setDebates([]);
     setActiveDebateIndex(0);
@@ -236,9 +348,32 @@ export const DemoPage: React.FC = () => {
     setFinalDecision(null);
     setIsCotActive(false);
 
+    // Reset Execution state (NEW)
+    setExecutionSteps([]);
+    setActiveExecutionIndex(-1);
+    setExecutionPhase('pending');
+    setExecutionSummary(null);
+    setAwaitingConfirmation(false);
+
     setCurrentTime(0);
 
     await startBackendDemo();
+  };
+
+  // Handle user confirmation of decision (NEW)
+  const handleConfirmDecision = async (action: string) => {
+    console.log('[Decision Confirmation]', action);
+    // In a real app, this would send the action to the backend
+    // For demo, the backend auto-confirms after a delay
+    try {
+      await fetch('http://localhost:8000/api/v2/demo/confirm', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action }),
+      });
+    } catch (e) {
+      console.warn('Confirm endpoint not available, auto-proceeding', e);
+    }
   };
 
   const handleRouteSelect = (route: Route) => {
@@ -371,13 +506,24 @@ export const DemoPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Right sidebar */}
-        <div className="w-[380px] bg-[#0a0e1a] border-l border-[#1a2332] flex flex-col overflow-hidden">
-          <div className="flex-1 overflow-y-auto pr-2">
+        {/* Resizable Right Sidebar */}
+        <div 
+          className="bg-[#0a0e1a] border-l border-[#1a2332] flex flex-col overflow-hidden relative"
+          style={{ width: sidebarWidth }}
+        >
+          {/* Resize Handle */}
+          <div
+            className="absolute left-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-[#4a90e2] transition-colors z-10 group"
+            onMouseDown={handleMouseDown}
+          >
+            <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-16 bg-[#1a2332] group-hover:bg-[#4a90e2] rounded-full transition-colors" />
+          </div>
+          
+          <div className="flex-1 overflow-y-auto pr-2 pl-2">
             {/* Azure stack badges */}
             <AzureBadges />
 
-            {/* Chain-of-Thought Panel - 鏂板 */}
+            {/* Chain-of-Thought Panel */}
             <AgentCoTPanel
               steps={cotSteps}
               debates={debates}
@@ -386,6 +532,12 @@ export const DemoPage: React.FC = () => {
               activeDebateIndex={activeDebateIndex}
               debatePhase={debatePhase}
               isActive={isCotActive}
+              executionSteps={executionSteps}
+              activeExecutionIndex={activeExecutionIndex}
+              executionPhase={executionPhase}
+              executionSummary={executionSummary}
+              awaitingConfirmation={awaitingConfirmation}
+              onConfirmDecision={handleConfirmDecision}
             />
 
             {/* Agent workflow */}

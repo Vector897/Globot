@@ -247,6 +247,78 @@ FINAL_DECISION = {
 }
 
 
+# =============================================================================
+# Execution Phase Steps (NEW)
+# =============================================================================
+
+EXECUTION_STEPS = [
+    {
+        "step_id": "EXEC-001",
+        "action": "carrier_notification",
+        "title": "Notifying Carriers",
+        "description": "Contacting Maersk and MSC for Cape route slot reservation",
+        "azure_service": "Azure Communication Services",
+        "duration_ms": 2000
+    },
+    {
+        "step_id": "EXEC-002",
+        "action": "slot_confirmation",
+        "title": "Slot Confirmed",
+        "description": "Maersk confirmed slot on MV Cape Runner, departing Jan 12",
+        "azure_service": "Azure Logic Apps",
+        "duration_ms": 1500
+    },
+    {
+        "step_id": "EXEC-003",
+        "action": "insurance_update",
+        "title": "Updating Insurance",
+        "description": "Filing war risk premium adjustment with Lloyd's of London",
+        "azure_service": "Azure OpenAI GPT-4",
+        "duration_ms": 1800
+    },
+    {
+        "step_id": "EXEC-004",
+        "action": "route_activation",
+        "title": "Activating New Route",
+        "description": "Updating vessel navigation system with Cape of Good Hope waypoints",
+        "azure_service": "Azure Maps",
+        "duration_ms": 2200
+    },
+    {
+        "step_id": "EXEC-005",
+        "action": "fuel_hedging",
+        "title": "Fuel Hedging",
+        "description": "Executing fuel futures hedge for South African port refueling",
+        "azure_service": "Azure Functions",
+        "duration_ms": 1600
+    },
+    {
+        "step_id": "EXEC-006",
+        "action": "customer_notification",
+        "title": "Customer Notification",
+        "description": "Sending delay notification to 3 affected customers with revised ETA",
+        "azure_service": "Azure Communication Services",
+        "duration_ms": 1200
+    }
+]
+
+EXECUTION_SUMMARY = {
+    "total_steps": 6,
+    "total_duration_ms": 10300,
+    "actions_completed": [
+        "Carrier slot reserved on MV Cape Runner",
+        "Insurance premium adjusted (-$28,000 war risk)",
+        "Navigation updated to Cape route",
+        "Fuel hedge executed for $5,200",
+        "3 customers notified of +14 day delay"
+    ],
+    "final_status": "REROUTE_EXECUTED",
+    "risk_score_before": 85,
+    "risk_score_after": 22,
+    "estimated_savings": "$112,500"
+}
+
+
 def get_reasoning_steps_for_demo() -> List[Dict[str, Any]]:
     """Get reasoning steps for Demo WebSocket streaming"""
     steps = []
@@ -293,3 +365,23 @@ def get_final_decision_for_demo() -> Dict[str, Any]:
         **FINAL_DECISION,
         "timestamp": datetime.now().isoformat()
     }
+
+
+def get_execution_steps_for_demo() -> List[Dict[str, Any]]:
+    """Get execution steps for Demo WebSocket streaming"""
+    return [
+        {
+            **step,
+            "timestamp": datetime.now().isoformat()
+        }
+        for step in EXECUTION_STEPS
+    ]
+
+
+def get_execution_summary_for_demo() -> Dict[str, Any]:
+    """Get execution summary data"""
+    return {
+        **EXECUTION_SUMMARY,
+        "timestamp": datetime.now().isoformat()
+    }
+

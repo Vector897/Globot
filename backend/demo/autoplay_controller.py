@@ -4,7 +4,9 @@ from demo.crisis_455pm_data import CRISIS_TIMELINE
 from demo.cot_data import (
     get_reasoning_steps_for_demo,
     get_debate_exchanges_for_demo,
-    get_final_decision_for_demo
+    get_final_decision_for_demo,
+    get_execution_steps_for_demo,
+    get_execution_summary_for_demo
 )
 import logging
 from datetime import datetime
@@ -26,6 +28,8 @@ class CrisisAutoPlayController:
         self.cot_steps = get_reasoning_steps_for_demo()
         self.debates = get_debate_exchanges_for_demo()
         self.final_decision = get_final_decision_for_demo()
+        self.execution_steps = get_execution_steps_for_demo()
+        self.execution_summary = get_execution_summary_for_demo()
 
     async def run_demo_sequence(self, websocket: WebSocket):
         """
@@ -182,14 +186,73 @@ class CrisisAutoPlayController:
             await asyncio.sleep(3)
 
             # =====================================================
-            # Phase 5: Execution Confirmation (T+58s - T+60s)
+            # Phase 5: Awaiting User Confirmation (T+58s)
             # =====================================================
-            logger.info("Demo Sequence: T5 - Execution")
+            logger.info("Demo Sequence: T5 - Awaiting Confirmation")
             await websocket.send_json({
-                "type": "EXECUTION",
-                "timestamp": self.timeline["t4_execution"]["timestamp"],
-                "actions": self.timeline["t4_execution"]["actions"],
-                "final_outcome": self.timeline["t4_execution"]["final_outcome"]
+                "type": "AWAITING_CONFIRMATION",
+                "timestamp": datetime.now().isoformat(),
+                "message": "Awaiting user approval to execute reroute",
+                "options": self.final_decision.get("approval_options", [])
+            })
+            await asyncio.sleep(3)  # Simulate user thinking time
+            
+            # Auto-confirm for demo (in real app, would wait for user input)
+            await websocket.send_json({
+                "type": "CONFIRMATION_RECEIVED",
+                "timestamp": datetime.now().isoformat(),
+                "action": "approve",
+                "message": "User confirmed: Execute reroute"
+            })
+            await asyncio.sleep(1)
+
+            # =====================================================
+            # Phase 6: Execution Animation (T+62s - T+75s)
+            # =====================================================
+            logger.info("Demo Sequence: T6 - Execution Steps")
+            
+            # Send execution start event
+            await websocket.send_json({
+                "type": "EXECUTION_START",
+                "timestamp": datetime.now().isoformat(),
+                "message": "Executing reroute decision",
+                "total_steps": len(self.execution_steps)
+            })
+            await asyncio.sleep(0.5)
+            
+            # Send each execution step
+            for i, step in enumerate(self.execution_steps):
+                # First send step as "executing"
+                await websocket.send_json({
+                    "type": "EXECUTION_STEP",
+                    "timestamp": datetime.now().isoformat(),
+                    "step_index": i,
+                    "total_steps": len(self.execution_steps),
+                    "status": "executing",
+                    "data": step
+                })
+                
+                # Wait for step duration
+                await asyncio.sleep(step["duration_ms"] / 1000)
+                
+                # Send step completion
+                await websocket.send_json({
+                    "type": "EXECUTION_STEP_COMPLETE",
+                    "timestamp": datetime.now().isoformat(),
+                    "step_index": i,
+                    "step_id": step["step_id"],
+                    "status": "complete"
+                })
+                await asyncio.sleep(0.3)
+            
+            # =====================================================
+            # Phase 7: Execution Complete (T+75s)
+            # =====================================================
+            logger.info("Demo Sequence: T7 - Execution Complete")
+            await websocket.send_json({
+                "type": "EXECUTION_COMPLETE",
+                "timestamp": datetime.now().isoformat(),
+                "data": self.execution_summary
             })
             await asyncio.sleep(2)
 
@@ -200,10 +263,11 @@ class CrisisAutoPlayController:
             await websocket.send_json({
                 "type": "DEMO_COMPLETE",
                 "timestamp": datetime.now().isoformat(),
-                "message": "Crisis Averted: Decision made in 60 seconds",
+                "message": "Crisis Averted: Decision executed in 75 seconds",
                 "summary": {
-                    "total_steps": len(self.cot_steps),
+                    "total_reasoning_steps": len(self.cot_steps),
                     "debates": len(self.debates),
+                    "execution_steps": len(self.execution_steps),
                     "savings": "$112,500",
                     "risk_reduction": "85 -> 22"
                 }
