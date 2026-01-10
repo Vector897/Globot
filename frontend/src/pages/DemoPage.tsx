@@ -95,7 +95,7 @@ interface ExecutionSummary {
 }
 
 export const DemoPage: React.FC = () => {
-  const { connect, events } = useWebSocket();
+  const { connect, events, send } = useWebSocket();
 
   const [demoStarted, setDemoStarted] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -394,18 +394,16 @@ export const DemoPage: React.FC = () => {
 
   // Handle user confirmation of decision (NEW)
   const handleConfirmDecision = async (action: string) => {
-    console.log('[Decision Confirmation]', action);
-    // In a real app, this would send the action to the backend
-    // For demo, the backend auto-confirms after a delay
-    try {
-      await fetch('http://localhost:8000/api/v2/demo/confirm', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action }),
-      });
-    } catch (e) {
-      console.warn('Confirm endpoint not available, auto-proceeding', e);
-    }
+    console.log('[Decision Confirmation] User clicked:', action);
+    // 通过WebSocket发送确认消息给后端
+    // 后端会等待这个确认才继续执行
+    const message = {
+      action: "confirm",
+      confirmation_type: action
+    };
+    console.log('[Decision Confirmation] Sending message:', message);
+    send(message);
+    console.log('[Decision Confirmation] Message sent');
   };
 
   const handleRouteSelect = (route: Route) => {

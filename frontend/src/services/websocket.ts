@@ -40,5 +40,18 @@ export const useWebSocket = () => {
     };
   };
 
-  return { connect, isConnected, events };
+  const send = (data: any) => {
+    console.log('[WebSocket] Attempting to send:', data);
+    console.log('[WebSocket] Current state:', ws.current ? ws.current.readyState : 'null');
+    if (ws.current && ws.current.readyState === WebSocket.OPEN) {
+      const message = JSON.stringify(data);
+      console.log('[WebSocket] Sending JSON:', message);
+      ws.current.send(message);
+      console.log('[WebSocket] Message sent successfully');
+    } else {
+      console.warn("[WebSocket] Cannot send - not connected. ReadyState:", ws.current?.readyState);
+    }
+  };
+
+  return { connect, isConnected, events, send };
 };
