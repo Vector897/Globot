@@ -30,6 +30,14 @@ class CrisisAutoPlayController:
         self.final_decision = get_final_decision_for_demo()
         self.execution_steps = get_execution_steps_for_demo()
         self.execution_summary = get_execution_summary_for_demo()
+        self.confirmation_event = asyncio.Event()  # 用于等待人工确认
+        self.confirmation_action = None  # 存储用户的确认动作
+
+    def confirm_decision(self, action: str):
+        """接收用户的确认决策"""
+        logger.info(f"User confirmation received: {action}")
+        self.confirmation_action = action
+        self.confirmation_event.set()
 
     async def run_demo_sequence(self, websocket: WebSocket):
         """
@@ -195,14 +203,18 @@ class CrisisAutoPlayController:
                 "message": "Awaiting user approval to execute reroute",
                 "options": self.final_decision.get("approval_options", [])
             })
-            await asyncio.sleep(3)  # Simulate user thinking time
             
-            # Auto-confirm for demo (in real app, would wait for user input)
+            # 等待人工确认（必须人为决策才能继续）
+            logger.info("Waiting for human approval...")
+            self.confirmation_event.clear()  # 确保事件是清空状态
+            await self.confirmation_event.wait()  # 阻塞，直到用户点击确认按钮
+            
+            # 发送确认接收事件
             await websocket.send_json({
                 "type": "CONFIRMATION_RECEIVED",
                 "timestamp": datetime.now().isoformat(),
-                "action": "approve",
-                "message": "User confirmed: Execute reroute"
+                "action": self.confirmation_action or "approve",
+                "message": f"User confirmed: {self.confirmation_action or 'Execute reroute'}"
             })
             await asyncio.sleep(1)
 

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Table, Tag, Button, Space, message as antMessage, Badge, Card } from 'antd';
-import { EyeOutlined, ReloadOutlined, ClockCircleOutlined, CheckCircleOutlined } from '@ant-design/icons';
+import { Table, Tag, Button, Space, message as antMessage, Badge, Card, Modal, Input } from 'antd';
+import { EyeOutlined, ReloadOutlined, ClockCircleOutlined, CheckCircleOutlined, PlayCircleOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { chatAPI } from '../../services/api';
 import HandoffStats from './HandoffStats';
@@ -10,6 +10,9 @@ const HandoffQueue = () => {
   const [handoffs, setHandoffs] = useState([]);
   const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState('pending'); // pending/processing/all
+  const [takeoverModalVisible, setTakeoverModalVisible] = useState(false);
+  const [selectedHandoffId, setSelectedHandoffId] = useState(null);
+  const [agentName, setAgentName] = useState('');
   const navigate = useNavigate();
 
   const fetchHandoffs = async () => {
@@ -32,6 +35,33 @@ const HandoffQueue = () => {
     const interval = setInterval(fetchHandoffs, 30000);
     return () => clearInterval(interval);
   }, [filter]);
+
+  const showTakeoverModal = (handoffId) => {
+    setSelectedHandoffId(handoffId);
+    setAgentName('销售-李四');
+    setTakeoverModalVisible(true);
+  };
+
+  const handleTakeOver = async () => {
+    if (!agentName.trim()) {
+      antMessage.warning('请输入您的姓名');
+      return;
+    }
+
+    try {
+      setTakeoverModalVisible(false);
+      await chatAPI.updateHandoffStatus(selectedHandoffId, {
+        status: 'processing',
+        agent_name: agentName
+      });
+      
+      antMessage.success(`${agentName} 已接手对话`);
+      await fetchHandoffs();
+    } catch (error) {
+      console.error('接手失败:', error);
+      antMessage.error('接手失败');
+    }
+  };
 
   const getPriorityTag = (priority) => {
     const config = {
@@ -138,16 +168,28 @@ const HandoffQueue = () => {
     {
       title: '操作',
       key: 'action',
-      width: 100,
+      width: 180,
       render: (_, record) => (
-        <Button
-          type="primary"
-          size="small"
-          icon={<EyeOutlined />}
-          onClick={() => navigate(`/admin/handoff/${record.id}`)}
-        >
-          处理
-        </Button>
+        <Space size="small">
+          {record.status === 'pending' && (
+            <Button
+              type="primary"
+              size="small"
+              icon={<PlayCircleOutlined />}
+              onClick={() => showTakeoverModal(record.id)}
+            >
+              接手
+            </Button>
+          )}
+          <Button
+            type="default"
+            size="small"
+            icon={<EyeOutlined />}
+            onClick={() => navigate(`/admin/handoff/${record.id}`)}
+          >
+            查看
+          </Button>
+        </Space>
       )
     }
   ];
@@ -210,6 +252,24 @@ const HandoffQueue = () => {
           }}
         />
       </Card>
+
+      {/* 接手对话弹窗 */}
+      <Modal
+        title="接手对话"
+        open={takeoverModalVisible}
+        onOk={handleTakeOver}
+        onCancel={() => setTakeoverModalVisible(false)}
+        okText="确认接手"
+        cancelText="取消"
+      >
+        <Input
+          placeholder="请输入您的姓名"
+          value={agentName}
+          onChange={(e) => setAgentName(e.target.value)}
+          onPressEnter={handleTakeOver}
+          autoFocus
+        />
+      </Modal>
     </div>
   );
 };

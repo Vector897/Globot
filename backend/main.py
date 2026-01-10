@@ -20,9 +20,9 @@ from core.handoff_manager import get_handoff_manager
 from core.crew_orchestrator import CrewAIOrchestrator, get_crew_orchestrator
 from core.crew_stock_research import build_company_research_crew
 
-from api.v2.azure_routes import router as azure_router
+# from api.v2.azure_routes import router as azure_router  # Disabled - Azure dependencies missing
 from api.v2.demo_routes import router as demo_router
-from api.v2.market_sentinel_routes import router as market_sentinel_router
+# from api.v2.market_sentinel_routes import router as market_sentinel_router  # Disabled - Azure dependencies missing
 from services.telegram_service import get_telegram_service
 
 # 配置日志
@@ -38,10 +38,10 @@ app = FastAPI(
     description="大疆无人机智能销售助理系统", version="0.1.0"
 )
 
-# 注册Azure路由
-app.include_router(azure_router)
+# 注册路由
+# app.include_router(azure_router)  # Disabled - Azure dependencies missing
 app.include_router(demo_router)
-app.include_router(market_sentinel_router)
+# app.include_router(market_sentinel_router)  # Disabled - Azure dependencies missing
 
 # 配置CORS
 app.add_middleware(

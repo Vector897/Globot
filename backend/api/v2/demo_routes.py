@@ -2,6 +2,7 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from demo.autoplay_controller import CrisisAutoPlayController
 import uuid
 import logging
+import asyncio
 
 logger = logging.getLogger(__name__)
 
@@ -44,8 +45,10 @@ async def websocket_demo(websocket: WebSocket, demo_id: str):
         await websocket.close(code=1008, reason="Invalid demo_id")
         return
 
+    demo_task = None
+    
     try:
-        # Loop to handle commands from client (e.g., "play")
+        # Loop to handle commands from client (e.g., "play", "confirm")
         while True:
             data = await websocket.receive_json()
             logger.info(f"Received command: {data}")
@@ -53,13 +56,14 @@ async def websocket_demo(websocket: WebSocket, demo_id: str):
             if data.get("action") == "play":
                 if not controller.is_playing:
                     controller.is_playing = True
-                    # Put this in a background task or await it if we want to block until done
-                    # Currently awaiting it means this loop blocks, which is fine for this simple demo
-                    await controller.run_demo_sequence(websocket)
-                    controller.is_playing = False
-                    break # Exit after demo complete? Or allow replay? 
-                          # Contract says DEMO_COMPLETE event, usually implies end.
-                          # Let's keep connection open briefly then maybe break or continue listening.
+                    # 在后台任务中运行demo序列，这样主循环可以继续接收消息
+                    demo_task = asyncio.create_task(controller.run_demo_sequence(websocket))
+                    logger.info("Demo sequence started in background")
+            elif data.get("action") == "confirm":
+                # 用户确认决策（Approve/Override/Details）
+                confirmation_type = data.get("confirmation_type", "approve")
+                logger.info(f"User confirmed decision: {confirmation_type}")
+                controller.confirm_decision(confirmation_type)
             elif data.get("action") == "ping":
                 await websocket.send_json({"type": "pong"})
 
@@ -74,5 +78,8 @@ async def websocket_demo(websocket: WebSocket, demo_id: str):
         except:
             pass
     finally:
+        # 取消后台任务
+        if demo_task and not demo_task.done():
+            demo_task.cancel()
         if demo_id in active_sessions:
             del active_sessions[demo_id]
