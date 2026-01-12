@@ -46,14 +46,7 @@ rank-bm25>=0.2.2
 jieba>=0.42.1
 langchain-text-splitters>=0.0.1
 
-# Azure Integration (required by azure_routes.py)
-azure-search-documents>=11.4.0
-azure-ai-textanalytics>=5.3.0
-azure-identity>=1.15.0
 
-# Azure AI Foundry (Market Sentinel multi-agent)
-azure-ai-projects>=1.0.0b1
-jsonref>=1.1.0
 
 # Market data (Market Sentinel returns analysis)
 pandas>=2.1.0

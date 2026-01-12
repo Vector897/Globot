@@ -9,12 +9,41 @@ import {
   ZoomableGroup,
 } from 'react-simple-maps';
 import { RouteLegend } from './RouteLegend';
-import { ZoomIn, ZoomOut, Maximize2 } from 'lucide-react';
+import { ZoomIn, ZoomOut, Maximize2, Navigation } from 'lucide-react';
 import { calculateRoutes, Route } from '../utils/routeCalculator';
+import { MOCK_SHIPS, Ship } from '../utils/shipData';
 
 const GEO_URL = 'https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json';
 const MAP_SCALE = 147;
 const MAP_WIDTH = 923.628; // Exact width for scale 147 (2 * PI * 147)
+
+// --- Helper for Path Interpolation ---
+// Returns [longitude, latitude, heading] for a given progress (0-1) along a path
+const getPositionAlongPath = (path: [number, number][], progress: number): [number, number, number] | null => {
+  if (!path || path.length < 2) return null;
+  
+  const totalPoints = path.length;
+  // This is a rough interpolation assuming equal spacing. 
+  // For high fidelity, we'd calculate actual lengths, but this is sufficient for demo visually.
+  const virtualIndex = progress * (totalPoints - 1);
+  const index = Math.floor(virtualIndex);
+  const nextIndex = Math.min(index + 1, totalPoints - 1);
+  const segmentProgress = virtualIndex - index;
+
+  const [lon1, lat1] = path[index];
+  const [lon2, lat2] = path[nextIndex];
+
+  // Interpolate
+  const lon = lon1 + (lon2 - lon1) * segmentProgress;
+  const lat = lat1 + (lat2 - lat1) * segmentProgress;
+
+  // Calculate Heading
+  const dLon = lon2 - lon1;
+  const dLat = lat2 - lat1;
+  const heading = (Math.atan2(dLon, dLat) * 180) / Math.PI;
+
+  return [lon, lat, heading];
+};
 
 // --- 1. Optimized Line Component (Memoized) ---
 const WrapAwareLine = memo(({
@@ -87,7 +116,9 @@ const WorldInstance = memo(({
   pulseOpacity,
   origin, 
   destination,
-  onRouteClick 
+  ships,         // New Prop
+  onRouteClick,
+  onShipClick    // New Prop
 }: any) => {
   return (
     <g transform={`translate(${offset}, 0)`}>
@@ -95,7 +126,7 @@ const WorldInstance = memo(({
       {geoData && (
         <Geographies geography={geoData}>
           {({ geographies }) =>
-            geographies.map((geo) => (
+            geographies.map((geo: any) => (
               <Geography
                 key={geo.rsmKey}
                 geography={geo}
@@ -133,8 +164,57 @@ const WorldInstance = memo(({
         </g>
       ))}
 
+      {/* Ships */}
+      {ships && ships.map((ship: any) => (
+         <Marker key={ship.id} coordinates={ship.position}>
+            <g
+                style={{ cursor: 'pointer' }}
+                onClick={(e) => {
+                    e.stopPropagation();
+                    onShipClick(ship);
+                }}
+            >
+                {/* Ping Effect for Attention */}
+                {ship.status === 'At Risk' || ship.status === 'Diverting' ? (
+                     <motion.circle 
+                        r={12} 
+                        fill="none" 
+                        stroke={ship.status === 'At Risk' ? '#ef4444' : '#f97316'}
+                        strokeWidth={1}
+                        initial={{ opacity: 0.6, scale: 0.5 }}
+                        animate={{ opacity: 0, scale: 1.5 }}
+                        transition={{ duration: 1.5, repeat: Infinity, ease: "easeOut" }}
+                     />
+                ) : null}
+
+                {/* Ship Icon Body */}
+                <g transform={`rotate(${ship.heading})`}>
+                    <path 
+                        d="M0,-8 L5,6 L0,4 L-5,6 Z" 
+                        fill={
+                            ship.status === 'At Risk' ? '#ef4444' : 
+                            ship.status === 'Diverting' ? '#f97316' : 
+                            '#ffffff'
+                        }
+                        stroke="#0a0e1a"
+                        strokeWidth="1"
+                    />
+                </g>
+                
+                {/* Labels on Hover (Simple SVG text) */}
+                <text 
+                    y={-12} 
+                    textAnchor="middle" 
+                    className="font-mono text-[6px] fill-white/80 pointer-events-none"
+                    style={{ textShadow: '0px 1px 2px #000' }}
+                >
+                    {ship.name}
+                </text>
+            </g>
+         </Marker>
+      ))}
+
       {/* Markers (Only render on the main instance to avoid clutter, or all if needed) */}
-      {/* We render on all instances so they appear when you pan infinitely */}
       {origin && (
         <Marker coordinates={origin.coordinates}>
           <g>
@@ -146,7 +226,7 @@ const WorldInstance = memo(({
       )}
       {destination && (
         <Marker coordinates={destination.coordinates}>
-           <g>
+          <g>
             <motion.circle r="12" fill="none" stroke="#c94444" strokeWidth="2" opacity={0.5} animate={{ r: [8, 16, 8], opacity: [0.5, 0.1, 0.5] }} transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut', delay: 0.5 }} />
             <circle r="6" fill="#c94444" />
             <text textAnchor="middle" y={-15} style={{ fontFamily: 'system-ui', fontSize: '10px', fill: '#e85555', fontWeight: 500 }}>{destination.name}</text>
@@ -169,6 +249,8 @@ interface GlobalMap2DProps {
   onRouteSelect?: (route: Route) => void;
   onRoutesCalculated?: (routes: Route[]) => void;
   selectedRouteFromParent?: Route | null;
+  currentTime?: number; // Pass simulation time
+  onShipSelect?: (ship: Ship) => void;
 }
 
 export function GlobalMap2D({
@@ -177,6 +259,8 @@ export function GlobalMap2D({
   onRouteSelect,
   onRoutesCalculated,
   selectedRouteFromParent,
+  currentTime = 0,
+  onShipSelect
 }: GlobalMap2DProps) {
   const [geoData, setGeoData] = useState<any>(null);
   const [pulseOpacity, setPulseOpacity] = useState(0.6);
@@ -184,6 +268,9 @@ export function GlobalMap2D({
   const [center, setCenter] = useState<[number, number]>([0, 20]);
   const [routes, setRoutes] = useState<Route[]>([]);
   const [selectedRouteId, setSelectedRouteId] = useState<string | null>(null);
+  
+  // Ship State
+  const [activeShips, setActiveShips] = useState<any[]>([]);
 
   // 1. Fetch Geometry Once
   useEffect(() => {
@@ -249,6 +336,46 @@ export function GlobalMap2D({
     }
   }, [selectedRouteFromParent]);
 
+  // 4. Update Ships based on routes relative to simulation time
+  useEffect(() => {
+     if (routes.length === 0) {
+         setActiveShips([]);
+         return;
+     }
+
+     const newShips = MOCK_SHIPS.filter(ship => routes.some(r => r.id === ship.routeId) || (ship.routeId.startsWith('fixed-') && routes.length > 0)) // Show mock ships if route exists
+        .map(ship => {
+            const route = routes.find(r => r.id === ship.routeId) || routes[0]; // Fallback to first route if ID mismatch (demo hack)
+            
+            // Calculate progress based on continuous simulation loop
+            // e.g. a ship completes a loop every 60 seconds
+            const loopTime = 60000; 
+            // Offset start time by ship id hash to desync them
+            const offset = (ship.id.charCodeAt(ship.id.length-1) * 1000); 
+            // Using real timestamp for smooth animation + currentTime for speed control if needed
+            const now = Date.now();
+            let progress = ((now + offset) % loopTime) / loopTime;
+            
+            // Apply direction (if ship going backwards) - Optional feature
+            if (ship.direction === -1) progress = 1 - progress;
+
+            const posData = getPositionAlongPath(route.waypoints, progress);
+            
+            if (posData) {
+                return { 
+                    ...ship, 
+                    position: [posData[0], posData[1]],
+                    heading: posData[2] 
+                };
+            }
+            return null;
+        })
+        .filter(s => s !== null);
+
+     setActiveShips(newShips as any[]);
+
+  }, [routes, pulseOpacity]); // Update every frame roughly as pulseOpacity changes
+
   const handleRouteClick = (route: Route) => {
     setSelectedRouteId(route.id);
     if (onRouteSelect) onRouteSelect(route);
@@ -289,8 +416,17 @@ export function GlobalMap2D({
           <ZoomableGroup
             zoom={zoom}
             center={center}
-            onMoveEnd={(position) => {
-              setCenter(position.coordinates);
+            onMove={(position) => {
+              // Infinite Scroll Wrapping Logic
+              // @ts-ignore - coordinates exists in runtime event but missing in types
+              let newLng = position.coordinates[0];
+              // @ts-ignore
+              const newLat = position.coordinates[1];
+              
+              if (newLng > 180) newLng -= 360;
+              else if (newLng < -180) newLng += 360;
+
+              setCenter([newLng, newLat]);
               setZoom(position.zoom);
             }}
             translateExtent={[
@@ -307,7 +443,11 @@ export function GlobalMap2D({
               pulseOpacity={pulseOpacity}
               origin={origin}
               destination={destination}
+              ships={activeShips}
               onRouteClick={handleRouteClick}
+              onShipClick={(ship: Ship) => {
+                if (onShipSelect) onShipSelect(ship);
+              }}
             />
             
             {/* 2. Main World */}
@@ -319,7 +459,11 @@ export function GlobalMap2D({
               pulseOpacity={pulseOpacity}
               origin={origin}
               destination={destination}
+              ships={activeShips}
               onRouteClick={handleRouteClick}
+              onShipClick={(ship: Ship) => {
+                if (onShipSelect) onShipSelect(ship);
+              }}
             />
             
             {/* 3. Right Clone */}
@@ -331,7 +475,11 @@ export function GlobalMap2D({
               pulseOpacity={pulseOpacity}
               origin={origin}
               destination={destination}
+              ships={activeShips}
               onRouteClick={handleRouteClick}
+              onShipClick={(ship: Ship) => {
+                if (onShipSelect) onShipSelect(ship);
+              }}
             />
 
           </ZoomableGroup>

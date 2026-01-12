@@ -37,30 +37,6 @@ class Settings(BaseSettings):
     upload_dir: str = "./data/uploads"
     max_upload_size_mb: int = 50
     
-    # ===== Telegram Bot 配置 =====
-    telegram_bot_token: str = ""  # 从 @BotFather 获取的 token
-    telegram_webhook_url: str = ""  # 你的服务器 webhook URL
-    
-    # ===== Azure OpenAI 配置 =====
-    azure_openai_endpoint: str = ""
-    azure_openai_api_key: str = ""
-    azure_openai_api_version: str = "2024-12-01-preview"
-    azure_openai_deployment_name: str = "gpt-4o-mini"
-    azure_openai_chat_deployment: str = "gpt-4"
-    azure_openai_embedding_deployment: str = "text-embedding-ada-002"
-    
-    # ===== Azure AI Search 配置 =====
-    azure_search_endpoint: str = ""
-    azure_search_key: str = ""
-    azure_search_index_name: str = "dji-knowledge-base"
-    
-    # ===== Azure AI Foundry (Market Sentinel) 配置 =====
-    # Env var: AZURE_FOUNDRY_PROJECT_ENDPOINT
-    azure_foundry_project_endpoint: str = ""
-    # Env var: AZURE_FOUNDRY_MODEL (default: gpt-4.1-mini)
-    azure_foundry_model: str = "gpt-4.1-mini"
-    # Env var: AZURE_BING_CONNECTION_ID (Azure resource path to Bing connection)
-    azure_bing_connection_id: str = "/subscriptions/c349553e-2065-4a16-ab24-c5a3826f189f/resourceGroups/rg-tlin56-1409/providers/Microsoft.CognitiveServices/accounts/tlin56-1409-resource/projects/tlin56-1409/connections/bingsearchinstance"
     
     # 系统配置
     log_level: str = "INFO"

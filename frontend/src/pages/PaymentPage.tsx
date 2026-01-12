@@ -212,7 +212,7 @@ export const PaymentPage: React.FC = () => {
 
   const handleProceedToDemo = () => {
     setIsModalOpen(false);
-    navigate('/demo');
+    navigate('/port');
   };
 
   const features = [
@@ -340,7 +340,7 @@ export const PaymentPage: React.FC = () => {
               <Zap className="w-5 h-5" />
               Start Free Trial
             </button>
-            <button className="hero-cta-secondary" onClick={() => navigate('/demo')}>
+            <button className="hero-cta-secondary" onClick={() => navigate('/port')}>
               <Play className="w-5 h-5" />
               Watch Demo
             </button>
@@ -528,7 +528,7 @@ export const PaymentPage: React.FC = () => {
               <Zap className="w-5 h-5" />
               Start Free Trial
             </button>
-            <button className="cta-btn-secondary" onClick={() => navigate('/demo')}>
+            <button className="cta-btn-secondary" onClick={() => navigate('/port')}>
               <Play className="w-5 h-5" />
               Try Live Demo
             </button>

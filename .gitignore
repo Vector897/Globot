@@ -293,8 +293,9 @@ site/
 # backend/alembic/versions/*.py
 # 但通常建议保留迁移文件
 
+# Ignore all markdown files except README.md
+*.md
+!README.md
 
 
-项目概述2.md
-商业模式.md
-提交新功能分支PR.md
+

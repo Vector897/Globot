@@ -1,15 +1,29 @@
-// routes.ts
 import { 
-  PATH_CAPE_OF_GOOD_HOPE, 
-  PATH_SUEZ_CANAL, 
-  PATH_PANAMA, 
-  PATH_ARCTIC_NSR 
+  PATH_ASIA_EUROPE_CAPE, 
+  PATH_ASIA_EUROPE_SUEZ, 
+  PATH_ASIA_EUROPE_ARCTIC,
+  PATH_ASIA_USWC, 
+  PATH_ASIA_USWC_SOUTH,
+  PATH_ASIA_USEC_PANAMA,
+  PATH_EUROPE_USEC,
+  PATH_INTRA_ASIA,
+  PATH_ASIA_MED_SUEZ,
+  PATH_ASIA_MED_CAPE
 } from './routeData';
+import { MAJOR_PORTS } from '../data/ports';
+
+// Interfaces
+export interface GlobalPort {
+  name: string;
+  coordinates: [number, number];
+  country: string;
+  region: string;
+}
 
 export interface Route {
   id: string;
   name: string;
-  riskLevel: "high" | "medium" | "low";
+  riskLevel: 'low' | 'medium' | 'high';
   color: string;
   strokeWidth: number;
   waypoints: [number, number][];
@@ -19,223 +33,211 @@ export interface Route {
   description: string;
 }
 
-export interface GlobalPort {
-  name: string;
-  country: string;
-  coordinates: [number, number]; 
-  region: string;
-}
-
-// --- 1. THE FULL OLD PORT LIST (Restored) ---
-const MAJOR_PORTS: GlobalPort[] = [
-  // Europe
-  { name: "Rotterdam", country: "Netherlands", coordinates: [4.47, 51.92], region: "Europe" },
-  { name: "Hamburg", country: "Germany", coordinates: [9.99, 53.55], region: "Europe" },
-  { name: "Antwerp", country: "Belgium", coordinates: [4.4, 51.22], region: "Europe" },
-  { name: "Le Havre", country: "France", coordinates: [0.11, 49.49], region: "Europe" },
-  { name: "Barcelona", country: "Spain", coordinates: [2.17, 41.38], region: "Europe" },
-  { name: "Piraeus", country: "Greece", coordinates: [23.65, 37.94], region: "Europe" },
-  { name: "Istanbul", country: "Turkey", coordinates: [28.97, 41.01], region: "Europe" },
-  { name: "Gdansk", country: "Poland", coordinates: [18.65, 54.35], region: "Europe" },
-
-  // Middle East
-  { name: "Dubai", country: "UAE", coordinates: [55.27, 25.2], region: "Middle East" },
-  { name: "Jeddah", country: "Saudi Arabia", coordinates: [39.19, 21.54], region: "Middle East" },
-  { name: "Port Said", country: "Egypt", coordinates: [32.28, 31.26], region: "Middle East" },
-  { name: "Haifa", country: "Israel", coordinates: [34.99, 32.82], region: "Middle East" },
-
-  // Asia
-  { name: "Singapore", country: "Singapore", coordinates: [103.85, 1.29], region: "Asia" },
-  { name: "Hong Kong", country: "China", coordinates: [114.17, 22.32], region: "Asia" }, 
-  { name: "Shanghai", country: "China", coordinates: [121.47, 31.23], region: "Asia" },
-  { name: "Busan", country: "South Korea", coordinates: [129.04, 35.18], region: "Asia" },
-  { name: "Tokyo", country: "Japan", coordinates: [139.77, 35.68], region: "Asia" },
-  { name: "Mumbai", country: "India", coordinates: [72.88, 19.08], region: "Asia" },
-  { name: "Colombo", country: "Sri Lanka", coordinates: [79.85, 6.93], region: "Asia" },
-  { name: "Jakarta", country: "Indonesia", coordinates: [106.85, -6.21], region: "Asia" },
-
-  // Africa
-  { name: "Cape Town", country: "South Africa", coordinates: [18.42, -33.92], region: "Africa" },
-  { name: "Durban", country: "South Africa", coordinates: [31.03, -29.86], region: "Africa" },
-  { name: "Lagos", country: "Nigeria", coordinates: [3.39, 6.45], region: "Africa" },
-  { name: "Djibouti", country: "Djibouti", coordinates: [43.15, 11.59], region: "Africa" },
-  { name: "Mombasa", country: "Kenya", coordinates: [39.66, -4.05], region: "Africa" },
-
-  // Americas
-  { name: "New York", country: "USA", coordinates: [-74.01, 40.71], region: "Americas" },
-  { name: "Los Angeles", country: "USA", coordinates: [-118.24, 34.05], region: "Americas" },
-  { name: "Miami", country: "USA", coordinates: [-80.19, 25.76], region: "Americas" },
-  { name: "Houston", country: "USA", coordinates: [-95.36, 29.76], region: "Americas" },
-  { name: "Santos", country: "Brazil", coordinates: [-46.33, -23.96], region: "Americas" },
-  { name: "Buenos Aires", country: "Argentina", coordinates: [-58.38, -34.6], region: "Americas" },
-  { name: "Panama City", country: "Panama", coordinates: [-79.53, 8.98], region: "Americas" },
-  { name: "Vancouver", country: "Canada", coordinates: [-123.12, 49.28], region: "Americas" },
-
-  // Oceania
-  { name: "Sydney", country: "Australia", coordinates: [151.21, -33.87], region: "Oceania" },
-  { name: "Melbourne", country: "Australia", coordinates: [144.96, -37.81], region: "Oceania" },
-  { name: "Auckland", country: "New Zealand", coordinates: [174.76, -36.85], region: "Oceania" },
-
-  // Strategic passages
-  { name: "Suez Canal", country: "Egypt", coordinates: [32.35, 30.44], region: "Middle East" },
-  { name: "Strait of Malacca", country: "Malaysia", coordinates: [100.35, 2.5], region: "Asia" },
-  { name: "Strait of Gibraltar", country: "Spain", coordinates: [-5.36, 36.14], region: "Europe" },
-];
-
-
-// --- 2. MAIN CALCULATION LOGIC ---
-
 export function calculateRoutes(origin: [number, number], destination: [number, number]): Route[] {
+  console.log('[RouteCalculator] Input Coordinates:', origin, destination);
   const originPort = findNearestPort(origin);
   const destPort = findNearestPort(destination, new Set([originPort.name]));
+  console.log('[RouteCalculator] Nearest Ports:', originPort?.name, destPort?.name, originPort?.region, destPort?.region);
 
-  // CHECK: Is this the specific Shanghai <-> Hamburg route?
-  // We check both directions.
-  const isShanghaiHamburg = 
-    (originPort.name === "Shanghai" && destPort.name === "Hamburg") ||
-    (originPort.name === "Hamburg" && destPort.name === "Shanghai");
+  if (!originPort || !destPort) {
+      console.warn('[RouteCalculator] Could not identify ports.');
+      return calculateDynamicRoutes(originPort || { coordinates: origin, name: 'Origin', region: 'Unknown' } as any, destPort || { coordinates: destination, name: 'Dest', region: 'Unknown' } as any);
+  }
+  
+  // Helper to check regions
+  const isAsia = (p: GlobalPort) => {
+      const res = p.region === 'Asia' || p.region === 'Middle East';
+      // console.log(`isAsia(${p.name}):`, res, p.region);
+      return res;
+  };
+  const isEurope = (p: GlobalPort) => {
+      const res = p.region === 'Europe';
+      // console.log(`isEurope(${p.name}):`, res, p.region);
+      return res;
+  };
+  const isUSWest = (p: GlobalPort) => p.region === 'Americas' && p.coordinates[0] < -100; // Rough check
+  const isUSEast = (p: GlobalPort) => p.region === 'Americas' && p.coordinates[0] > -100;
 
-  if (isShanghaiHamburg) {
-    // Return the HIGH PRECISION manual paths
-    return getDetailedShanghaiHamburgRoutes();
+  // 1. ASIA <-> EUROPE
+  if ((isAsia(originPort) && isEurope(destPort)) || (isEurope(originPort) && isAsia(destPort))) {
+    return [
+      {
+        id: "route-cape",
+        name: "Cape of Good Hope",
+        riskLevel: "low",
+        color: "#2ecc71",
+        strokeWidth: 3,
+        waypoints: adjustDirection(PATH_ASIA_EUROPE_CAPE, originPort, destPort),
+        waypointNames: [originPort.name, "Singapore", "Cape Town", destPort.name],
+        distance: 13500, // Approx nm
+        estimatedTime: 13500 / 18 / 24, // Days @ 18kts
+        description: "Primary secure route via Africa"
+      },
+      {
+        id: "route-suez",
+        name: "Suez Canal / Red Sea",
+        riskLevel: "high",
+        color: "#e74c3c",
+        strokeWidth: 3,
+        waypoints: adjustDirection(PATH_ASIA_EUROPE_SUEZ, originPort, destPort),
+        waypointNames: [originPort.name, "Singapore", "Suez", destPort.name],
+        distance: 10500,
+        estimatedTime: 10500 / 18 / 24,
+        description: "High risk transit zone"
+      },
+      {
+        id: "route-arctic",
+        name: "Northern Sea Route",
+        riskLevel: "high",
+        color: "#9b59b6",
+        strokeWidth: 2,
+        waypoints: adjustDirection(PATH_ASIA_EUROPE_ARCTIC, originPort, destPort),
+        waypointNames: [originPort.name, "Bering Strait", "Arctic", destPort.name],
+        distance: 8000,
+        estimatedTime: 8000 / 14 / 24, // Slower speed in ice
+        description: "Arctic route (Seasonal/Ice)"
+      }
+    ];
   }
 
-  // OTHERWISE: Return the GENERIC dynamic paths (Old Logic)
+  // 2. ASIA <-> US WEST COAST
+  if ((isAsia(originPort) && isUSWest(destPort)) || (isUSWest(originPort) && isAsia(destPort))) {
+    return [
+      {
+        id: "route-pacific",
+        name: "Pacific Great Circle",
+        riskLevel: "low",
+        color: "#3498db",
+        strokeWidth: 3,
+        waypoints: adjustDirection(PATH_ASIA_USWC, originPort, destPort),
+        waypointNames: [originPort.name, "Pacific", destPort.name],
+        distance: 6000,
+        estimatedTime: 14,
+        description: "Direct trans-pacific route"
+      },
+      {
+        id: "route-pacific-south",
+        name: "Pacific Southern Route",
+        riskLevel: "low",
+        color: "#f1c40f",
+        strokeWidth: 2,
+        waypoints: adjustDirection(PATH_ASIA_USWC_SOUTH, originPort, destPort),
+        waypointNames: [originPort.name, "Hawaii", destPort.name],
+        distance: 7200,
+        estimatedTime: 17,
+        description: "Avoids northern storms"
+      },
+      {
+         id: "route-pacific-direct",
+         name: "Direct Line (Theoretical)",
+         riskLevel: "medium",
+         color: "#95a5a6",
+         strokeWidth: 1,
+         waypoints: [originPort.coordinates, destPort.coordinates],
+         waypointNames: [originPort.name, "Ocean", destPort.name],
+         distance: 5800,
+         estimatedTime: 13,
+         description: "Shortest geometric path"
+      }
+    ];
+  }
+
+  // 3. ASIA <-> US EAST COAST
+  if ((isAsia(originPort) && isUSEast(destPort)) || (isUSEast(originPort) && isAsia(destPort))) {
+    return [{
+      id: "route-panama",
+      name: "Panama Canal",
+      riskLevel: "medium",
+      color: "#f1c40f",
+      strokeWidth: 2,
+      waypoints: adjustDirection(PATH_ASIA_USEC_PANAMA, originPort, destPort),
+      waypointNames: [originPort.name, "Panama", destPort.name],
+      distance: 10000,
+      estimatedTime: 23,
+      description: "Via Panama Canal"
+    }];
+  }
+  
+  // 4. EUROPE <-> US EAST COAST
+  if ((isEurope(originPort) && isUSEast(destPort)) || (isUSEast(originPort) && isEurope(destPort))) {
+    return [{
+      id: "route-transatlantic",
+      name: "Trans-Atlantic",
+      riskLevel: "low",
+      color: "#3498db",
+      strokeWidth: 2,
+      waypoints: adjustDirection(PATH_EUROPE_USEC, originPort, destPort),
+      waypointNames: [originPort.name, "Atlantic", destPort.name],
+      distance: 3500,
+      estimatedTime: 8,
+      description: "Direct Atlantic crossing"
+    }];
+  }
+
+  // 5. INTRA-ASIA (Fallback/Specific)
+  if (isAsia(originPort) && isAsia(destPort)) {
+     // Use dynamic for short distance but try to map to predefined if close
+     return calculateDynamicRoutes(originPort, destPort);
+  }
+
+  // 6. ASIA <-> MEDITERRANEAN (e.g. Tanger Med, Barcelona) -> Special Handling
+  // because "Europe" check might be strict or we want specific Med paths
+  const isMed = (p: GlobalPort) => p.region === 'Africa' || p.region === 'Europe'; 
+  if ((isAsia(originPort) && isMed(destPort)) || (isMed(originPort) && isAsia(destPort))) {
+      // Prioritize these over generic Europe for Mediterranean ports
+      if (['Tanger Med', 'Barcelona', 'Valencia', 'Algeciras', 'Genoa', 'Piraeus', 'Port Said'].includes(originPort.name) || 
+          ['Tanger Med', 'Barcelona', 'Valencia', 'Algeciras', 'Genoa', 'Piraeus', 'Port Said'].includes(destPort.name)) {
+          
+            return [
+                {
+                    id: "route-med-cape",
+                    name: "Cape of Good Hope (Med)",
+                    riskLevel: "low",
+                    color: "#2ecc71",
+                    strokeWidth: 3,
+                    waypoints: adjustDirection(PATH_ASIA_MED_CAPE, originPort, destPort),
+                    waypointNames: [originPort.name, "Cape Town", destPort.name],
+                    distance: 14000,
+                    estimatedTime: 32,
+                    description: "Secure route to Mediterranean"
+                },
+                {
+                    id: "route-med-suez",
+                    name: "Suez Canal (Med)",
+                    riskLevel: "high",
+                    color: "#e74c3c",
+                    strokeWidth: 3,
+                    waypoints: adjustDirection(PATH_ASIA_MED_SUEZ, originPort, destPort),
+                    waypointNames: [originPort.name, "Suez", destPort.name],
+                    distance: 9000,
+                    estimatedTime: 20,
+                    description: "Direct Med access via Suez"
+                }
+            ];
+      }
+  }
+
+  // Fallback to Dynamic
   return calculateDynamicRoutes(originPort, destPort);
 }
 
+// --- HELPERS ---
 
-// --- 3. SPECIFIC ROUTE BUILDER (Uses routeData.ts) ---
-
-function getDetailedShanghaiHamburgRoutes(): Route[] {
-  const distCape = calculateTotalDistance(PATH_CAPE_OF_GOOD_HOPE);
-  const distSuez = calculateTotalDistance(PATH_SUEZ_CANAL);
-  const distPanama = calculateTotalDistance(PATH_PANAMA);
-  const distArctic = calculateTotalDistance(PATH_ARCTIC_NSR);
-
-  return [
-    {
-      id: "fixed-cape",
-      name: "Cape of Good Hope (Standard)",
-      riskLevel: "low",
-      color: "#2ecc71",
-      strokeWidth: 3,
-      waypoints: PATH_CAPE_OF_GOOD_HOPE,
-      waypointNames: ["Shanghai", "Singapore", "Cape Town", "Rotterdam", "Hamburg"],
-      distance: distCape,
-      estimatedTime: Math.round(distCape / 35),
-      description: "Primary safe route via Africa. Avoids Red Sea conflict.",
-    },
-    {
-      id: "fixed-suez",
-      name: "Suez Canal (Red Sea)",
-      riskLevel: "high",
-      color: "#e74c3c",
-      strokeWidth: 3,
-      waypoints: PATH_SUEZ_CANAL,
-      waypointNames: ["Shanghai", "Singapore", "Suez Canal", "Hamburg"],
-      distance: distSuez,
-      estimatedTime: Math.round(distSuez / 32),
-      description: "Shortest but High Risk due to regional conflict.",
-    },
-    {
-      id: "fixed-panama",
-      name: "Panama Canal (Westbound)",
-      riskLevel: "medium",
-      color: "#f1c40f",
-      strokeWidth: 2.5,
-      waypoints: PATH_PANAMA,
-      waypointNames: ["Shanghai", "Panama Canal", "Hamburg"],
-      distance: distPanama,
-      estimatedTime: Math.round(distPanama / 38),
-      description: "All-water alternative avoiding Middle East.",
-    },
-    {
-      id: "fixed-arctic",
-      name: "Northern Sea Route (Arctic)",
-      riskLevel: "high",
-      color: "#3498db",
-      strokeWidth: 2,
-      waypoints: PATH_ARCTIC_NSR,
-      waypointNames: ["Shanghai", "Bering Strait", "Arctic", "Hamburg"],
-      distance: distArctic,
-      estimatedTime: Math.round(distArctic / 25),
-      description: "Seasonal shortcut. Impassable in Winter.",
-    }
-  ];
+// Reverses path if going West->East vs East->West relative to definitions
+function adjustDirection(path: [number, number][], origin: GlobalPort, dest: GlobalPort): [number, number][] {
+   // Simple heuristic: If path defined A->B, and we want B->A, reverse it.
+   // We'll compare distance of origin to path[0] vs path[last]
+   const dStart = calculateDistance(origin.coordinates[1], origin.coordinates[0], path[0][1], path[0][0]);
+   const dEnd = calculateDistance(origin.coordinates[1], origin.coordinates[0], path[path.length-1][1], path[path.length-1][0]);
+   
+   let finalPath = [...path];
+   if (dEnd < dStart) {
+     finalPath = finalPath.reverse();
+   }
+   
+   // Stitch exact ports to ends
+   return [origin.coordinates, ...finalPath, dest.coordinates];
 }
-
-
-// --- 4. GENERIC DYNAMIC LOGIC (Restored from Original) ---
-
-function calculateDynamicRoutes(originPort: GlobalPort, destPort: GlobalPort): Route[] {
-  const routes: Route[] = [];
-
-  // Route 1: Safe (3 intermediates)
-  const safeIntermediates = findIntermediatePorts(
-    originPort.coordinates, destPort.coordinates, 3, ["Africa", "Middle East", "Asia"]
-  );
-  const safeWaypoints = [originPort.coordinates, ...safeIntermediates.map(p => p.coordinates), destPort.coordinates];
-  const safeDist = calculateTotalDistance(safeWaypoints);
-
-  routes.push({
-    id: "dyn-safe-1",
-    name: "Standard Corridor",
-    riskLevel: "low",
-    color: "#5a9a7a",
-    strokeWidth: 2,
-    waypoints: safeWaypoints as [number, number][],
-    waypointNames: [originPort.name, ...safeIntermediates.map(p => p.name), destPort.name],
-    distance: safeDist,
-    estimatedTime: Math.round(safeDist / 35),
-    description: "Calculated secure route via major hubs",
-  });
-
-  // Route 2: Alternative (Via different regions)
-  const altIntermediates = findIntermediatePorts(
-    originPort.coordinates, destPort.coordinates, 2, ["Europe", "Asia"], safeIntermediates
-  );
-  const altWaypoints = [originPort.coordinates, ...altIntermediates.map(p => p.coordinates), destPort.coordinates];
-  const altDist = calculateTotalDistance(altWaypoints);
-
-  routes.push({
-    id: "dyn-safe-2",
-    name: "Alternative Corridor",
-    riskLevel: "low",
-    color: "#6ba889",
-    strokeWidth: 2,
-    waypoints: altWaypoints as [number, number][],
-    waypointNames: [originPort.name, ...altIntermediates.map(p => p.name), destPort.name],
-    distance: altDist,
-    estimatedTime: Math.round(altDist / 35),
-    description: "Secondary secure routing option",
-  });
-
-  // Route 3: Express (Fewer stops)
-  const expressIntermediates = findIntermediatePorts(
-    originPort.coordinates, destPort.coordinates, 1, undefined, [...safeIntermediates, ...altIntermediates]
-  );
-  const expressWaypoints = [originPort.coordinates, ...expressIntermediates.map(p => p.coordinates), destPort.coordinates];
-  const expressDist = calculateTotalDistance(expressWaypoints);
-
-  routes.push({
-    id: "dyn-express",
-    name: "Express Route",
-    riskLevel: "medium",
-    color: "#e8a547",
-    strokeWidth: 2.5,
-    waypoints: expressWaypoints as [number, number][],
-    waypointNames: [originPort.name, ...expressIntermediates.map(p => p.name), destPort.name],
-    distance: expressDist,
-    estimatedTime: Math.round(expressDist / 38),
-    description: "Direct routing with moderate risk profile",
-  });
-
-  return routes;
-}
-
-
-// --- 5. HELPERS (Restored) ---
 
 function findNearestPort(coord: [number, number], excludeNames: Set<string> = new Set()): GlobalPort {
   let nearest = MAJOR_PORTS[0];
@@ -251,40 +253,22 @@ function findNearestPort(coord: [number, number], excludeNames: Set<string> = ne
   return nearest;
 }
 
-function findIntermediatePorts(
-  origin: [number, number], 
-  destination: [number, number], 
-  count: number, 
-  regions?: string[], 
-  avoid?: GlobalPort[]
-): GlobalPort[] {
-  const result: GlobalPort[] = [];
-  const used = new Set((avoid || []).map(p => p.name));
-
-  for (let i = 1; i <= count; i++) {
-    const ratio = i / (count + 1);
-    const lat = origin[1] + (destination[1] - origin[1]) * ratio;
-    const lng = origin[0] + (destination[0] - origin[0]) * ratio;
-
-    let candidates = MAJOR_PORTS.filter(p => !used.has(p.name));
-    if (regions) {
-      const regFilter = candidates.filter(p => regions.includes(p.region));
-      if (regFilter.length) candidates = regFilter;
-    }
-
-    let best = candidates[0];
-    let minD = Infinity;
-    for (const p of candidates) {
-      const d = calculateDistance(lat, lng, p.coordinates[1], p.coordinates[0]);
-      if (d < minD) {
-        minD = d;
-        best = p;
-      }
-    }
-    result.push(best);
-    used.add(best.name);
-  }
-  return result;
+function calculateDynamicRoutes(originPort: GlobalPort, destPort: GlobalPort): Route[] {
+  // Simple Great Circle fallback for undefined routes
+  const waypoints: [number, number][] = [originPort.coordinates, destPort.coordinates];
+  const dist = calculateTotalDistance(waypoints);
+  return [{
+    id: "dyn-direct",
+    name: "Direct Route",
+    riskLevel: "medium",
+    color: "#95a5a6",
+    strokeWidth: 1,
+    waypoints: waypoints,
+    waypointNames: [originPort.name, destPort.name],
+    distance: dist,
+    estimatedTime: Math.round(dist / 300), // very rough
+    description: "Direct calculated path"
+  }];
 }
 
 function calculateTotalDistance(waypoints: [number, number][]): number {

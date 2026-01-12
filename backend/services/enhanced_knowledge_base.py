@@ -6,9 +6,8 @@ from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_community.vectorstores import Chroma
 from langchain_core.documents import Document
 
-# LangChain 1.x: retrievers from langchain.retrievers
-from langchain.retrievers import EnsembleRetriever, ParentDocumentRetriever
-# from langgraph.store.memory import InMemoryStore  # Optional, may not be needed
+# LangChain retrievers - use langchain_classic for EnsembleRetriever
+from langchain_classic.retrievers import EnsembleRetriever
 
 from langchain_community.retrievers import BM25Retriever
 from langchain_text_splitters import RecursiveCharacterTextSplitter

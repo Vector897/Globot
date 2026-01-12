@@ -197,6 +197,10 @@ class CrisisAutoPlayController:
             # Phase 5: Awaiting User Confirmation (T+58s)
             # =====================================================
             logger.info("Demo Sequence: T5 - Awaiting Confirmation")
+            
+            # Clear event BEFORE asking user, to ensure we capture any subsequent click
+            self.confirmation_event.clear() 
+            
             await websocket.send_json({
                 "type": "AWAITING_CONFIRMATION",
                 "timestamp": datetime.now().isoformat(),
@@ -206,7 +210,6 @@ class CrisisAutoPlayController:
             
             # 等待人工确认（必须人为决策才能继续）
             logger.info("Waiting for human approval...")
-            self.confirmation_event.clear()  # 确保事件是清空状态
             await self.confirmation_event.wait()  # 阻塞，直到用户点击确认按钮
             
             # 发送确认接收事件

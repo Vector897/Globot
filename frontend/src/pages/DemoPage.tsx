@@ -12,7 +12,9 @@ import { AgentWorkflow } from '../components/AgentWorkflow';
 import { AgentCoTPanel } from '../components/AgentCoTPanel';
 
 import { Route, GlobalPort } from '../utils/routeCalculator';
-import { Globe, Map, RefreshCw, Shield, Brain } from 'lucide-react';
+import { Ship } from '../utils/shipData';
+import { ShipDetailsCard } from '../components/ShipDetailsCard';
+import { Globe, Map, RefreshCw, Shield, Brain, ChevronRight, ChevronLeft, ChevronUp, ChevronDown } from 'lucide-react';
 
 import { 
   MarketSentinelResponse, 
@@ -94,8 +96,14 @@ interface ExecutionSummary {
   estimated_savings: string;
 }
 
+import { useLocation } from 'react-router-dom';
+// ...
+import { MAJOR_PORTS } from '../data/ports';
+
+// ... (inside DemoPage component)
 export const DemoPage: React.FC = () => {
   const { connect, events, send } = useWebSocket();
+  const location = useLocation();
 
   const [demoStarted, setDemoStarted] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -108,6 +116,7 @@ export const DemoPage: React.FC = () => {
 
   const [selectedRoute, setSelectedRoute] = useState<Route | null>(null);
   const [routes, setRoutes] = useState<Route[]>([]);
+  const [selectedShip, setSelectedShip] = useState<Ship | null>(null);
 
   // === Market Sentinel State ===
   const [marketSentinelData, setMarketSentinelData] = useState<MarketSentinelResponse | null>(null);
@@ -132,28 +141,32 @@ export const DemoPage: React.FC = () => {
 
   // === Resizable Right Sidebar ===
   const [sidebarWidth, setSidebarWidth] = useState(420);
+  const [isRightCollapsed, setIsRightCollapsed] = useState(false);
   const isResizing = useRef(false);
   const minWidth = 320;
   const maxWidth = 600;
 
   // === Resizable Bottom Panel ===
   const [bottomHeight, setBottomHeight] = useState(220);
+  const [isBottomCollapsed, setIsBottomCollapsed] = useState(false);
   const isResizingBottom = useRef(false);
   const minBottomHeight = 120;
   const maxBottomHeight = 400;
   const mapContainerRef = useRef<HTMLDivElement>(null);
 
   const handleMouseDown = useCallback(() => {
+    if (isRightCollapsed) return;
     isResizing.current = true;
     document.body.style.cursor = 'col-resize';
     document.body.style.userSelect = 'none';
-  }, []);
+  }, [isRightCollapsed]);
 
   const handleBottomMouseDown = useCallback(() => {
+    if (isBottomCollapsed) return;
     isResizingBottom.current = true;
     document.body.style.cursor = 'row-resize';
     document.body.style.userSelect = 'none';
-  }, []);
+  }, [isBottomCollapsed]);
 
   const handleMouseMove = useCallback((e: MouseEvent) => {
     if (isResizing.current) {
@@ -183,21 +196,42 @@ export const DemoPage: React.FC = () => {
     };
   }, [handleMouseMove, handleMouseUp]);
 
-  // Clock only runs while demo is started
+  // Auto-start logic
+  useEffect(() => {
+    if (!demoStarted) {
+      // Check for state from navigation or use defaults
+      const stateOrigin = location.state?.origin;
+      const stateDestination = location.state?.destination;
+
+      const defaultOrigin = MAJOR_PORTS.find(p => p.name === 'Shanghai') || MAJOR_PORTS[0];
+      const defaultDestination = MAJOR_PORTS.find(p => p.name === 'Rotterdam') || MAJOR_PORTS[1];
+
+      handleStartDemo(stateOrigin || defaultOrigin, stateDestination || defaultDestination);
+    }
+  }, []); // Run once on mount
+
+  // === Time Animation Loop ===
   useEffect(() => {
     if (!demoStarted) return;
-    const interval = setInterval(() => setCurrentTime((prev) => prev + 1), 1000);
-    return () => clearInterval(interval);
+    
+    // Use setInterval for integer-level updates (more stable than high-freq RAF)
+    const intervalId = setInterval(() => {
+      setCurrentTime(prev => prev + 1);
+    }, 1000);
+    
+    return () => {
+      clearInterval(intervalId);
+    };
   }, [demoStarted]);
 
-  // === WebSocket Event Handlers ===
+  // === WebSocket Event Handling ===
   useEffect(() => {
     if (events.length === 0) return;
-    
-    const latestEvent = events[events.length - 1];
-    console.log('[CoT Event]', latestEvent.type, latestEvent);
+    const lastEvent = events[events.length - 1];
+    console.log('Processing Event:', lastEvent.type, lastEvent);
 
-    switch (latestEvent.type) {
+    switch (lastEvent.type) {
+      // --- CoT Events ---
       case 'COT_START':
         setIsCotActive(true);
         setCotSteps([]);
@@ -205,85 +239,81 @@ export const DemoPage: React.FC = () => {
         break;
 
       case 'COT_STEP':
-        const stepData = latestEvent.data as CoTStep;
-        setCotSteps(prev => [...prev, stepData]);
-        setActiveStepIndex(latestEvent.step_index);
+        setCotSteps(prev => {
+          // Avoid duplicates if using React.StrictMode or re-renders
+          if (prev.find(s => s.step_id === lastEvent.data.step_id)) return prev;
+          return [...prev, lastEvent.data];
+        });
+        setActiveStepIndex(lastEvent.step_index);
         break;
 
       case 'RAG_CITATION':
-        // RAG citation is included in COT_STEP, this can be used for additional highlighting
+        // Update the corresponding step with sources
+        setCotSteps(prev => prev.map(step => {
+          if (step.step_id === lastEvent.step_id || step.agent_id === lastEvent.agent_id) {
+            return {
+              ...step,
+              sources: lastEvent.sources
+            };
+          }
+          return step;
+        }));
         break;
 
+      // --- Debate Events ---
       case 'DEBATE_START':
-        setDebates([]);
-        setActiveDebateIndex(0);
         setDebatePhase('challenge');
+        setDebates([]);
         break;
 
       case 'DEBATE_CHALLENGE':
-        const challengeData = latestEvent.data;
-        setDebates(prev => {
-          const existing = [...prev];
-          if (!existing[latestEvent.exchange_index]) {
-            existing[latestEvent.exchange_index] = {
-              exchange_id: challengeData.exchange_id,
-              challenger_agent: challengeData.challenger,
-              defender_agent: challengeData.defender,
-              challenge: challengeData.challenge,
-              challenge_reason: challengeData.reason,
-            };
-          }
-          return existing;
-        });
-        setActiveDebateIndex(latestEvent.exchange_index);
+        setDebates(prev => [...prev, {
+          exchange_id: lastEvent.data.exchange_id,
+          challenger_agent: lastEvent.data.challenger,
+          defender_agent: lastEvent.data.defender,
+          challenge: lastEvent.data.challenge,
+          challenge_reason: lastEvent.data.reason
+        }]);
+        setActiveDebateIndex(lastEvent.exchange_index);
         setDebatePhase('challenge');
         break;
 
       case 'DEBATE_RESPONSE':
-        const responseData = latestEvent.data;
-        setDebates(prev => {
-          const updated = [...prev];
-          if (updated[latestEvent.exchange_index]) {
-            updated[latestEvent.exchange_index] = {
-              ...updated[latestEvent.exchange_index],
-              response: responseData.response,
-            };
+        setDebates(prev => prev.map(ex => {
+          if (ex.exchange_id === lastEvent.data.exchange_id) {
+            return { ...ex, response: lastEvent.data.response };
           }
-          return updated;
-        });
+          return ex;
+        }));
         setDebatePhase('response');
         break;
 
       case 'DEBATE_RESOLVE':
-        const resolveData = latestEvent.data;
-        setDebates(prev => {
-          const updated = [...prev];
-          if (updated[latestEvent.exchange_index]) {
-            updated[latestEvent.exchange_index] = {
-              ...updated[latestEvent.exchange_index],
-              resolution: resolveData.resolution,
-              resolution_accepted: resolveData.accepted,
-              sources: resolveData.sources,
+        setDebates(prev => prev.map(ex => {
+          if (ex.exchange_id === lastEvent.data.exchange_id) {
+            return {
+              ...ex,
+              resolution: lastEvent.data.resolution,
+              resolution_accepted: lastEvent.data.accepted,
+              sources: lastEvent.data.sources
             };
           }
-          return updated;
-        });
+          return ex;
+        }));
         setDebatePhase('resolve');
         break;
 
+      // --- Decision Events ---
       case 'DECISION_READY':
-        const decisionData = latestEvent.data;
         setFinalDecision({
-          decision_id: decisionData.decision_id,
-          final_recommendation: decisionData.final_recommendation,
-          recommendation_details: decisionData.recommendation_details,
-          total_duration_ms: decisionData.total_duration_ms,
-          approval_options: decisionData.approval_options,
+          decision_id: lastEvent.data.decision_id || 'dec-001',
+          final_recommendation: lastEvent.data.final_recommendation,
+          recommendation_details: lastEvent.data.recommendation_details,
+          total_duration_ms: lastEvent.data.total_duration_ms,
+          approval_options: lastEvent.data.approval_options
         });
-        setIsCotActive(false);
         break;
 
-      // === Execution Events (NEW) ===
       case 'AWAITING_CONFIRMATION':
         setAwaitingConfirmation(true);
         break;
@@ -292,42 +322,37 @@ export const DemoPage: React.FC = () => {
         setAwaitingConfirmation(false);
         break;
 
+      // --- Execution Events ---
       case 'EXECUTION_START':
         setExecutionPhase('executing');
         setExecutionSteps([]);
-        setActiveExecutionIndex(-1);
         break;
 
       case 'EXECUTION_STEP':
-        const execStepData = latestEvent.data as ExecutionStep;
         setExecutionSteps(prev => {
-          const existing = [...prev];
-          if (!existing.find(s => s.step_id === execStepData.step_id)) {
-            existing.push({ ...execStepData, status: 'executing' });
-          }
-          return existing;
+           if (prev.find(s => s.step_id === lastEvent.data.step_id)) return prev;
+           return [...prev, lastEvent.data];
         });
-        setActiveExecutionIndex(latestEvent.step_index);
+        setActiveExecutionIndex(lastEvent.step_index);
         break;
-
+      
       case 'EXECUTION_STEP_COMPLETE':
-        setExecutionSteps(prev => {
-          return prev.map((step, idx) => 
-            idx === latestEvent.step_index 
-              ? { ...step, status: 'complete' as const }
-              : step
-          );
-        });
+        setExecutionSteps(prev => prev.map(step => {
+          if (step.step_id === lastEvent.step_id) {
+            return { ...step, status: 'complete' };
+          }
+          return step;
+        }));
         break;
 
       case 'EXECUTION_COMPLETE':
         setExecutionPhase('complete');
-        setExecutionSummary(latestEvent.data as ExecutionSummary);
-        setActiveExecutionIndex(-1);
+        setExecutionSummary(lastEvent.data);
         break;
-
+        
       case 'DEMO_COMPLETE':
-        setIsCotActive(false);
+        // Optional: Show final summary modal or notification
+        console.log("Demo Sequence Completed", lastEvent.summary);
         break;
     }
   }, [events]);
@@ -366,6 +391,7 @@ export const DemoPage: React.FC = () => {
     setDestination(destinationPort);
 
     setDemoStarted(true);
+    // ... (rest of reset logic)
     setIsChangingRoute(false);
 
     setRoutes([]);
@@ -379,6 +405,7 @@ export const DemoPage: React.FC = () => {
     setDebatePhase('challenge');
     setFinalDecision(null);
     setIsCotActive(false);
+    setSelectedShip(null);
 
     // Reset Execution state (NEW)
     setExecutionSteps([]);
@@ -391,6 +418,8 @@ export const DemoPage: React.FC = () => {
 
     await startBackendDemo();
   };
+  
+  // ...
 
   // Handle user confirmation of decision (NEW)
   const handleConfirmDecision = async (action: string) => {
@@ -412,9 +441,16 @@ export const DemoPage: React.FC = () => {
 
   // Run Market Sentinel analysis
   const runMarketSentinel = useCallback(async () => {
+    if (marketSentinelLoading) return; // Prevent double clicks
+    
     setMarketSentinelLoading(true);
     setMarketSentinelError(null);
     
+    // Safety timeout to ensure loading state is reset
+    const timeoutId = setTimeout(() => {
+        setMarketSentinelLoading(false);
+    }, 8000);
+
     try {
       let response: MarketSentinelResponse;
       
@@ -434,15 +470,17 @@ export const DemoPage: React.FC = () => {
         response = await runSimpleAnalysis();
       }
       
+      clearTimeout(timeoutId); // Clear safety timeout on success
       setMarketSentinelData(response);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
       setMarketSentinelError(errorMessage);
       console.error('Market Sentinel error:', err);
     } finally {
+      clearTimeout(timeoutId);
       setMarketSentinelLoading(false);
     }
-  }, [origin, destination]);
+  }, [origin, destination, marketSentinelLoading]);
 
   // Helper to convert port names to codes
   const getPortCode = (portName: string): string | null => {
@@ -504,7 +542,7 @@ export const DemoPage: React.FC = () => {
               Globot Shield · 4:55 PM Strait of Hormuz scenario
             </h1>
             <p className="text-xs text-white/40 truncate">
-              {origin?.name} → {destination?.name} · T+{currentTime}s · {scenarioPhase}
+              {origin?.name} → {destination?.name} · T+{currentTime.toFixed(0)}s · {scenarioPhase}
             </p>
           </div>
         </div>
@@ -585,38 +623,79 @@ export const DemoPage: React.FC = () => {
                 onRouteSelect={handleRouteSelect}
                 onRoutesCalculated={setRoutes}
                 selectedRouteFromParent={selectedRoute}
+                currentTime={currentTime}
+                onShipSelect={setSelectedShip}
               />
+
             )}
+            
+            {/* Ship Details Overlay */}
+            <ShipDetailsCard 
+              ship={selectedShip} 
+              onClose={() => setSelectedShip(null)} 
+            />
           </div>
 
           {/* Resize Handle for Bottom Panel */}
           <div
-            className="h-1 cursor-row-resize hover:bg-[#4a90e2] transition-colors z-10 group flex items-center justify-center"
+            className="h-1 cursor-row-resize hover:bg-[#4a90e2] transition-colors z-10 group flex items-center justify-center relative"
             onMouseDown={handleBottomMouseDown}
           >
             <div className="w-16 h-1 bg-[#1a2332] group-hover:bg-[#4a90e2] rounded-full transition-colors" />
+            
+            {/* Bottom Collapse Button */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation(); // Prevent drag start
+                setIsBottomCollapsed(!isBottomCollapsed);
+              }}
+              className="absolute right-4 -top-3 w-6 h-4 bg-[#1a2332] rounded-t-sm flex items-center justify-center hover:bg-[#4a90e2] transition-colors z-20 group border border-b-0 border-[#white]/10"
+            >
+              {isBottomCollapsed ? <ChevronUp className="w-3 h-3 text-white/60 group-hover:text-white" /> : <ChevronDown className="w-3 h-3 text-white/60 group-hover:text-white" />}
+            </button>
           </div>
 
           {/* Timeline */}
-          <div className="shrink-0" style={{ height: bottomHeight }}>
-            <CrisisTimeline executionPhase={executionPhase} />
+          <div 
+            className="shrink-0 transition-all duration-300 ease-in-out border-t border-[#1a2332]" 
+            style={{ 
+              height: isBottomCollapsed ? 0 : bottomHeight,
+              overflow: 'hidden' 
+            }}
+          >
+            <div style={{ height: bottomHeight }}>
+              <CrisisTimeline 
+                executionPhase={executionPhase} 
+                onShipClick={setSelectedShip}
+              />
+            </div>
           </div>
         </div>
 
         {/* Resizable Right Sidebar */}
         <div 
-          className="bg-[#0a0e1a] border-l border-[#1a2332] flex flex-col overflow-hidden relative"
-          style={{ width: sidebarWidth }}
+          className="bg-[#0a0e1a] border-l border-[#1a2332] flex flex-col overflow-hidden relative transition-[width] duration-300 ease-in-out"
+          style={{ width: isRightCollapsed ? 24 : sidebarWidth }}
         >
           {/* Resize Handle */}
-          <div
-            className="absolute left-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-[#4a90e2] transition-colors z-10 group"
-            onMouseDown={handleMouseDown}
+          {!isRightCollapsed && (
+            <div
+              className="absolute left-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-[#4a90e2] transition-colors z-10 group"
+              onMouseDown={handleMouseDown}
+            >
+              <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-16 bg-[#1a2332] group-hover:bg-[#4a90e2] rounded-full transition-colors" />
+            </div>
+          )}
+
+          {/* Right Collapse Button */}
+          <button
+            onClick={() => setIsRightCollapsed(!isRightCollapsed)}
+            className="absolute left-0 top-2 z-20 w-6 h-6 flex items-center justify-center bg-[#1a2332] hover:bg-[#4a90e2] transition-colors rounded-r-sm"
           >
-            <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-16 bg-[#1a2332] group-hover:bg-[#4a90e2] rounded-full transition-colors" />
-          </div>
+            {isRightCollapsed ? <ChevronLeft className="w-3 h-3 text-white/60" /> : <ChevronRight className="w-3 h-3 text-white/60" />}
+          </button>
           
-          <div className="flex-1 overflow-y-auto pr-2 pl-2">
+          <div className={`flex-1 overflow-y-auto pr-2 pl-2 transition-opacity duration-200 ${isRightCollapsed ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
             {/* Azure stack badges */}
             <AzureBadges />
 
@@ -647,6 +726,15 @@ export const DemoPage: React.FC = () => {
               onRunMarketSentinel={runMarketSentinel}
             />
           </div>
+
+          {/* Collapsed Text */}
+          {isRightCollapsed && (
+            <div className="absolute top-10 w-full flex flex-col items-center gap-4 py-4">
+               <div className="[writing-mode:vertical-rl] rotate-180 text-xs font-medium text-white/40 tracking-wider whitespace-nowrap">
+                  INTELLIGENCE
+               </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

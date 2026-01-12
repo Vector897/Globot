@@ -433,7 +433,7 @@ export function AgentCoTPanel({
                       )}
 
                       {/* Human-in-the-Loop Confirmation Buttons */}
-                      {onConfirmDecision && executionPhase === "pending" && (
+                      {onConfirmDecision && awaitingConfirmation && executionPhase === "pending" && (
                         <motion.div
                           initial={{ opacity: 0, y: 10 }}
                           animate={{ opacity: 1, y: 0 }}

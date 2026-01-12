@@ -1,8 +1,9 @@
 import { motion, AnimatePresence } from 'motion/react';
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts';
 import { useEffect, useRef, useState } from 'react';
-import { AlertTriangle, Info, CheckCircle2 } from 'lucide-react';
+import { AlertTriangle, Info, CheckCircle2, Ship as ShipIcon } from 'lucide-react';
 import React from 'react';
+import { MOCK_SHIPS, Ship } from '../utils/shipData';
 
 interface TimelineEvent {
   id: string;
@@ -13,6 +14,7 @@ interface TimelineEvent {
 
 interface CrisisTimelineProps {
   executionPhase?: 'pending' | 'executing' | 'complete';
+  onShipClick?: (ship: Ship) => void;
 }
 
 // Shanghai → Hamburg Demo Scenario (~2 min, 35 events)
@@ -22,7 +24,7 @@ interface CrisisTimelineProps {
 // Phases 1-4: Events that play before decision approval
 const preExecutionMessages = [
   // === Phase 1: 平静无事 (Calm operations - Suez Canal route planned) ===
-  { message: 'Shanghai → Hamburg: Vessel MV Pacific Fortune departed Yangshan Deep Water Port', type: 'success' as const },
+  { message: 'Shanghai → Hamburg: Vessel "EVER ALOT" departed Yangshan Deep Water Port', type: 'success' as const },
   { message: 'Cargo manifest validated: 4,200 TEU containers, high-value electronics shipment', type: 'info' as const },
   { message: 'Route: Suez Canal (Red Sea) - shortest path. Transit scheduled Day 18', type: 'success' as const },
   { message: 'Market Sentinel monitoring 156 global risk indicators - all within normal range', type: 'info' as const },
@@ -54,7 +56,7 @@ const preExecutionMessages = [
   { message: '🚨 Suez Canal Authority: All northbound traffic SUSPENDED until further notice', type: 'critical' as const },
   { message: 'Insurance: Suez Canal route declared WAR RISK zone, premiums +500%', type: 'critical' as const },
   { message: 'Market impact: Asia-Europe freight rates surging +$2,400/TEU in 4 hours', type: 'critical' as const },
-  { message: 'MV Pacific Fortune position: Approaching Singapore, 72 hours before Suez decision point', type: 'info' as const },
+  { message: '"EVER ALOT" position: Approaching Singapore, 72 hours before Suez decision point', type: 'info' as const },
   { message: '⏳ AWAITING DECISION: Recommend switch to Cape of Good Hope route. Approval required.', type: 'critical' as const },
 ];
 
@@ -69,7 +71,7 @@ const executionMessages = [
   { message: '✅ Crisis averted. Estimated savings vs Suez exposure: $3.8M. Vessel safe on Cape route', type: 'success' as const },
 ];
 
-export function CrisisTimeline({ executionPhase = 'pending' }: CrisisTimelineProps) {
+export function CrisisTimeline({ executionPhase = 'pending', onShipClick }: CrisisTimelineProps) {
   const [riskData, setRiskData] = useState([
     { time: '09:00', risk: 15 },
     { time: '09:30', risk: 22 },
@@ -301,6 +303,26 @@ export function CrisisTimeline({ executionPhase = 'pending' }: CrisisTimelinePro
                   >
                     {event.message}
                   </span>
+                  
+                  {/* Interactive Ship Link if message contains known ship name */}
+                  {(() => {
+                    const foundShip = MOCK_SHIPS.find(s => event.message.includes(s.name));
+                    if (foundShip) {
+                      return (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (onShipClick) onShipClick(foundShip);
+                          }}
+                          className="ml-auto px-1.5 py-0.5 rounded-xs bg-[#4a90e2]/10 hover:bg-[#4a90e2]/30 border border-[#4a90e2]/30 text-[9px] text-[#4a90e2] flex items-center gap-1 transition-colors cursor-pointer"
+                        >
+                          <ShipIcon className="w-2.5 h-2.5" />
+                          <span>View Ship</span>
+                        </button>
+                      );
+                    }
+                    return null;
+                  })()}
                 </motion.div>
               );
             })}

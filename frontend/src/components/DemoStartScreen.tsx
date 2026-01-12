@@ -1,20 +1,10 @@
-import React, { useState } from 'react';
-import { motion } from 'motion/react';
+import React, { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
 import { Ship, MapPin, Play, X } from 'lucide-react';
 import { GlobalPort } from '../utils/routeCalculator';
+import { MAJOR_PORTS as PORTS } from '../data/ports';
 
-const PORTS: GlobalPort[] = [
-  { name: 'Shanghai', country: 'China', coordinates: [121.47, 31.23], region: 'Asia' },
-  { name: 'Singapore', country: 'Singapore', coordinates: [103.85, 1.29], region: 'Asia' },
-  { name: 'Rotterdam', country: 'Netherlands', coordinates: [4.47, 51.92], region: 'Europe' },
-  { name: 'Hamburg', country: 'Germany', coordinates: [9.99, 53.55], region: 'Europe' },
-  { name: 'Dubai', country: 'UAE', coordinates: [55.27, 25.2], region: 'Middle East' },
-  { name: 'Los Angeles', country: 'USA', coordinates: [-118.24, 34.05], region: 'Americas' },
-  { name: 'New York', country: 'USA', coordinates: [-74.01, 40.71], region: 'Americas' },
-  { name: 'Mumbai', country: 'India', coordinates: [72.88, 19.08], region: 'Asia' },
-  { name: 'Tokyo', country: 'Japan', coordinates: [139.69, 35.69], region: 'Asia' },
-  { name: 'Cape Town', country: 'South Africa', coordinates: [18.42, -33.92], region: 'Africa' },
-];
+// ...
 
 interface DemoStartScreenProps {
   onStart: (origin: GlobalPort, destination: GlobalPort) => void;
@@ -25,6 +15,10 @@ interface DemoStartScreenProps {
 }
 
 export function DemoStartScreen({ onStart, currentOrigin, currentDestination, isChanging = false, onCancel }: DemoStartScreenProps) {
+  useEffect(() => {
+    console.log('[DemoStartScreen] Mounted', { PORTS_LENGTH: PORTS?.length, currentOrigin, currentDestination });
+  }, []);
+
   const [origin, setOrigin] = useState<GlobalPort | null>(currentOrigin || null);
   const [destination, setDestination] = useState<GlobalPort | null>(currentDestination || null);
 

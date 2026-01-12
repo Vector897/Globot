@@ -5,6 +5,7 @@ import zhCN from 'antd/locale/zh_CN';
 import './App.css';
 import { DemoPage } from './pages/DemoPage';
 import { PaymentPage } from './pages/PaymentPage';
+import { PortSelectionPage } from './pages/PortSelectionPage';
 
 function App() {
   return (
@@ -13,6 +14,7 @@ function App() {
         <Routes>
            <Route path="/" element={<Navigate to="/pay" replace />} />
            <Route path="/pay" element={<PaymentPage />} />
+           <Route path="/port" element={<PortSelectionPage />} />
            <Route path="/demo" element={<DemoPage />} />
            {/* Admin routes disabled for debug */}
         </Routes>
