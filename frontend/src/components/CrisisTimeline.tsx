@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { AlertTriangle, Info, CheckCircle2, Ship as ShipIcon } from 'lucide-react';
 import React from 'react';
 import { MOCK_SHIPS, Ship } from '../utils/shipData';
+import { formatUTCTimeShort, getUTCTimestamp } from '../utils/timeUtils';
 
 interface TimelineEvent {
   id: string;
@@ -131,16 +132,12 @@ export function CrisisTimeline({ executionPhase = 'pending', onShipClick }: Cris
     if (preExecIndex >= preExecutionMessages.length) return;
 
     const interval = setInterval(() => {
-      const now = new Date();
-      const time = now.toLocaleTimeString('en-US', { 
-        hour12: false, 
-        hour: '2-digit', 
-        minute: '2-digit' 
-      });
+      // Use UTC time for consistency
+      const time = formatUTCTimeShort().slice(0, 5); // HH:MM format
       
       const newEvent: TimelineEvent = {
-        id: Date.now().toString(),
-        time,
+        id: getUTCTimestamp().toString(),
+        time: time + ' UTC',
         ...preExecutionMessages[preExecIndex],
       };
 
@@ -157,16 +154,12 @@ export function CrisisTimeline({ executionPhase = 'pending', onShipClick }: Cris
     if (execIndex >= executionMessages.length) return;
 
     const interval = setInterval(() => {
-      const now = new Date();
-      const time = now.toLocaleTimeString('en-US', { 
-        hour12: false, 
-        hour: '2-digit', 
-        minute: '2-digit' 
-      });
+      // Use UTC time for consistency
+      const time = formatUTCTimeShort().slice(0, 5); // HH:MM format
       
       const newEvent: TimelineEvent = {
-        id: `exec-${Date.now()}`,
-        time,
+        id: `exec-${getUTCTimestamp()}`,
+        time: time + ' UTC',
         ...executionMessages[execIndex],
       };
 

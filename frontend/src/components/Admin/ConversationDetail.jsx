@@ -5,6 +5,7 @@ import { ArrowLeftOutlined, RobotOutlined, UserOutlined } from '@ant-design/icon
 import ReactMarkdown from 'react-markdown';
 import { chatAPI } from '../../services/api';
 import styles from './ConversationDetail.module.css';
+import { formatUTCDateTimeCN } from '../../utils/timeUtils';
 
 const ConversationDetail = () => {
   const { customerId } = useParams();
@@ -74,8 +75,8 @@ const ConversationDetail = () => {
             <Descriptions.Item label="分类">
               {getCategoryTag(customer.category, customer.priority_score)}
             </Descriptions.Item>
-            <Descriptions.Item label="创建时间">
-              {new Date(customer.created_at).toLocaleString('zh-CN')}
+            <Descriptions.Item label="创建时间 (UTC)">
+              {formatUTCDateTimeCN(customer.created_at)}
             </Descriptions.Item>
           </Descriptions>
         </Card>
@@ -90,7 +91,7 @@ const ConversationDetail = () => {
               <h4>
                 会话 #{conversation.id} 
                 <span style={{ fontSize: 14, color: '#8c8c8c', marginLeft: 16 }}>
-                  {new Date(conversation.created_at).toLocaleString('zh-CN')}
+                  {formatUTCDateTimeCN(conversation.created_at)}
                 </span>
               </h4>
               
@@ -111,7 +112,7 @@ const ConversationDetail = () => {
                           {message.sender === 'CUSTOMER' ? '客户' : 'AI'}
                         </Tag>
                         <span className={styles.messageTime}>
-                          {new Date(message.created_at).toLocaleString('zh-CN')}
+                          {formatUTCDateTimeCN(message.created_at)}
                         </span>
                         {message.ai_confidence !== undefined && (
                           <Tag>置信度: {(message.ai_confidence * 100).toFixed(0)}%</Tag>
