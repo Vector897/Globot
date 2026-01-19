@@ -71,10 +71,30 @@ graph TD
 
 ### 1. 启动后端
 
+#### 前置要求
+- Python 3.11
+
+#### 安装步骤
+
 ```bash
+# 进入后端目录
 cd backend
-# 确保安装了依赖
-# pip install -r requirements.txt
+
+# 创建虚拟环境（推荐）
+python -m venv venv
+
+# 激活虚拟环境
+# Windows PowerShell:
+.\venv\Scripts\Activate.ps1
+# Windows CMD:
+ venv\Scripts\activate.bat
+# macOS/Linux:
+ source venv/bin/activate
+
+# 安装依赖
+pip install -r requirements.txt
+
+# 启动服务器
 python start_server.py
 ```
 _后端运行在 `http://localhost:8000`_
