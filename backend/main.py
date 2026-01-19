@@ -22,6 +22,7 @@ from core.crew_stock_research import build_company_research_crew
 
 from api.v2.demo_routes import router as demo_router
 from api.v2.market_sentinel_routes import router as market_sentinel_router
+from api.v2.hedging_routes import router as hedging_router
 
 
 # 配置日志
@@ -40,6 +41,7 @@ app = FastAPI(
 # 注册路由
 app.include_router(demo_router)
 app.include_router(market_sentinel_router)
+app.include_router(hedging_router)
 
 
 # 配置CORS
