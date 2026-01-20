@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { useWebSocket } from '../services/websocket';
 
-import { GlobalMap2D } from '../components/GlobalMap2D';
+import { GlobalMap2D, CustomMarker } from '../components/GlobalMap2D';
+import { GlobalMap2DDeck, CustomMarker as DeckCustomMarker } from '../components/GlobalMap2DDeck';
 import { GlobalMap3D } from '../components/GlobalMap3D';
 import { RouteSelector } from '../components/RouteSelector';
 import { CrisisTimeline } from '../components/CrisisTimeline';
@@ -138,6 +139,47 @@ export const DemoPage: React.FC = () => {
   const [executionPhase, setExecutionPhase] = useState<'pending' | 'executing' | 'complete'>('pending');
   const [executionSummary, setExecutionSummary] = useState<ExecutionSummary | null>(null);
   const [awaitingConfirmation, setAwaitingConfirmation] = useState(false);
+
+  // === Custom Markers for Testing ===
+  const [customMarkers] = useState<CustomMarker[]>([
+    {
+      id: 'test-marker-1',
+      coordinates: [121.60, 31.23], // 上海附近
+      name: '测试标记点1',
+      color: '#10b981',
+      size: 10,
+      onClick: () => console.log('点击了测试标记点1')
+    },
+    {
+      id: 'test-marker-2',
+      coordinates: [56.0, 26.0], // 霍尔木兹海峡
+      name: '危机区域',
+      color: '#ef4444',
+      size: 12,
+      onClick: () => console.log('点击了危机区域标记')
+    },
+    {
+      id: 'test-marker-3',
+      coordinates: [4.05, 51.95], // 鹿特丹附近
+      name: '测试标记点3',
+      color: '#3b82f6',
+      size: 8
+    },
+    {
+      id: 'test-marker-4',
+      coordinates: [103.82, 1.26], // 新加坡
+      name: '新加坡港',
+      color: '#f59e0b',
+      size: 9
+    },
+    {
+      id: 'test-marker-5',
+      coordinates: [55.02, 25.01], // 迪拜
+      name: '迪拜港',
+      color: '#8b5cf6',
+      size: 9
+    }
+  ]);
 
   // === Resizable Right Sidebar ===
   const [sidebarWidth, setSidebarWidth] = useState(420);
@@ -617,7 +659,7 @@ export const DemoPage: React.FC = () => {
                 selectedRouteFromParent={selectedRoute}
               />
             ) : (
-              <GlobalMap2D
+              <GlobalMap2DDeck
                 origin={origin || undefined}
                 destination={destination || undefined}
                 onRouteSelect={handleRouteSelect}
@@ -625,6 +667,7 @@ export const DemoPage: React.FC = () => {
                 selectedRouteFromParent={selectedRoute}
                 currentTime={currentTime}
                 onShipSelect={setSelectedShip}
+                customMarkers={customMarkers}
               />
 
             )}

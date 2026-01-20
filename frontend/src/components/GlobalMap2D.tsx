@@ -117,6 +117,7 @@ const WorldInstance = memo(({
   origin, 
   destination,
   ships,         // New Prop
+  customMarkers, // New Prop: 自定义标记点
   onRouteClick,
   onShipClick    // New Prop
 }: any) => {
@@ -233,6 +234,55 @@ const WorldInstance = memo(({
           </g>
         </Marker>
       )}
+
+      {/* Custom Markers - 自定义标记点 */}
+      {customMarkers && customMarkers.map((marker) => (
+        <Marker key={marker.id} coordinates={marker.coordinates}>
+          <g
+            style={{ cursor: marker.onClick ? 'pointer' : 'default' }}
+            onClick={(e) => {
+              if (marker.onClick) {
+                e.stopPropagation();
+                marker.onClick();
+              }
+            }}
+          >
+            {/* 自定义图标 */}
+            {marker.icon ? (
+              marker.icon
+            ) : (
+              <>
+                {/* 默认标记样式 */}
+                <motion.circle 
+                  r={marker.size || 8} 
+                  fill="none" 
+                  stroke={marker.color || '#10b981'} 
+                  strokeWidth="2" 
+                  opacity={0.5} 
+                  animate={{ r: [(marker.size || 8) - 2, (marker.size || 8) + 4, (marker.size || 8) - 2], opacity: [0.5, 0.1, 0.5] }} 
+                  transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }} 
+                />
+                <circle r={(marker.size || 8) * 0.6} fill={marker.color || '#10b981'} />
+                {marker.name && (
+                  <text 
+                    textAnchor="middle" 
+                    y={-((marker.size || 8) + 5)} 
+                    style={{ 
+                      fontFamily: 'system-ui', 
+                      fontSize: '10px', 
+                      fill: marker.color || '#10b981', 
+                      fontWeight: 500,
+                      pointerEvents: 'none'
+                    }}
+                  >
+                    {marker.name}
+                  </text>
+                )}
+              </>
+            )}
+          </g>
+        </Marker>
+      ))}
     </g>
   );
 });
@@ -243,6 +293,16 @@ interface Port {
   coordinates: [number, number];
 }
 
+export interface CustomMarker {
+  id: string;
+  coordinates: [number, number]; // [longitude, latitude]
+  name?: string;
+  color?: string;
+  size?: number;
+  icon?: React.ReactNode;
+  onClick?: () => void;
+}
+
 interface GlobalMap2DProps {
   origin?: Port;
   destination?: Port;
@@ -251,6 +311,7 @@ interface GlobalMap2DProps {
   selectedRouteFromParent?: Route | null;
   currentTime?: number; // Pass simulation time
   onShipSelect?: (ship: Ship) => void;
+  customMarkers?: CustomMarker[]; // 自定义标记点数组
 }
 
 export function GlobalMap2D({
@@ -260,17 +321,23 @@ export function GlobalMap2D({
   onRoutesCalculated,
   selectedRouteFromParent,
   currentTime = 0,
-  onShipSelect
+  onShipSelect,
+  customMarkers = []
 }: GlobalMap2DProps) {
   const [geoData, setGeoData] = useState<any>(null);
   const [pulseOpacity, setPulseOpacity] = useState(0.6);
   const [zoom, setZoom] = useState(1);
-  const [center, setCenter] = useState<[number, number]>([0, 20]);
   const [routes, setRoutes] = useState<Route[]>([]);
   const [selectedRouteId, setSelectedRouteId] = useState<string | null>(null);
   
   // Ship State
   const [activeShips, setActiveShips] = useState<any[]>([]);
+  
+  // Center position for map - can exceed [-180, 180] during drag
+  // 地图中心点 - 拖动过程中可以超出 [-180, 180] 范围
+  const [rawCenter, setRawCenter] = useState<[number, number]>([0, 20]);
+  
+  
 
   // 1. Fetch Geometry Once
   useEffect(() => {
@@ -298,6 +365,7 @@ export function GlobalMap2D({
     return () => cancelAnimationFrame(animationFrameId);
   }, []);
 
+
   // 3. Route Calculation & Logic
   useEffect(() => {
     if (origin && destination) {
@@ -314,11 +382,11 @@ export function GlobalMap2D({
         // Smart Centering (Pacific vs Atlantic)
         const isPacificRoute = Math.abs(origin.coordinates[0] - destination.coordinates[0]) > 180;
         if (isPacificRoute) {
-          setCenter([180, 20]);
+          setRawCenter([180, 20]);
         } else {
           const midLng = (origin.coordinates[0] + destination.coordinates[0]) / 2;
           const midLat = (origin.coordinates[1] + destination.coordinates[1]) / 2;
-          setCenter([midLng, midLat]);
+          setRawCenter([midLng, midLat]);
         }
         setZoom(1.2);
       } catch (e) {
@@ -383,7 +451,21 @@ export function GlobalMap2D({
 
   const handleZoomIn = () => setZoom((prev) => Math.min(prev * 1.5, 8));
   const handleZoomOut = () => setZoom((prev) => Math.max(prev / 1.5, 1));
-  const handleReset = () => { setZoom(1); setCenter([0, 20]); };
+  const handleReset = () => { setZoom(1); setRawCenter([0, 20]); };
+
+  // World instances: Fixed large array for practical "infinite" scroll
+  // 世界副本：固定大数组，实现实际可用的"无限"滚动
+  // Note: True infinite scroll is not possible with react-simple-maps due to d3-zoom limitations
+  // 注意：由于 d3-zoom 的限制，react-simple-maps 无法实现真正的无限滚动
+  // 31 copies (-15 to +15) covers ±5400° which is enough for any practical use
+  // 31个副本覆盖 ±5400°，足够任何实际使用场景
+  const worldInstances = useMemo(() => {
+    const instances: number[] = [];
+    for (let i = -15; i <= 15; i++) {
+      instances.push(i);
+    }
+    return instances;
+  }, []);
 
   return (
     <div className="relative w-full h-full bg-[#0a0e1a] overflow-hidden">
@@ -415,72 +497,38 @@ export function GlobalMap2D({
         >
           <ZoomableGroup
             zoom={zoom}
-            center={center}
-            onMove={(position) => {
-              // Infinite Scroll Wrapping Logic
-              // @ts-ignore - coordinates exists in runtime event but missing in types
-              let newLng = position.coordinates[0];
-              // @ts-ignore
-              const newLat = position.coordinates[1];
-              
-              if (newLng > 180) newLng -= 360;
-              else if (newLng < -180) newLng += 360;
-
-              setCenter([newLng, newLat]);
-              setZoom(position.zoom);
+            center={rawCenter}
+            onMoveEnd={({ coordinates, zoom: newZoom }) => {
+              // Keep actual coordinates - world instances auto-adjust based on position
+              // 保持实际坐标 - 世界副本根据位置自动调整
+              setRawCenter(coordinates);
+              setZoom(newZoom);
             }}
             translateExtent={[
               [-Infinity, -Infinity],
               [Infinity, Infinity]
             ]}
           >
-            {/* 1. Left Clone */}
-            <WorldInstance 
-              offset={-MAP_WIDTH}
-              geoData={geoData}
-              routes={routes}
-              selectedRouteId={selectedRouteId}
-              pulseOpacity={pulseOpacity}
-              origin={origin}
-              destination={destination}
-              ships={activeShips}
-              onRouteClick={handleRouteClick}
-              onShipClick={(ship: Ship) => {
-                if (onShipSelect) onShipSelect(ship);
-              }}
-            />
-            
-            {/* 2. Main World */}
-            <WorldInstance 
-              offset={0}
-              geoData={geoData}
-              routes={routes}
-              selectedRouteId={selectedRouteId}
-              pulseOpacity={pulseOpacity}
-              origin={origin}
-              destination={destination}
-              ships={activeShips}
-              onRouteClick={handleRouteClick}
-              onShipClick={(ship: Ship) => {
-                if (onShipSelect) onShipSelect(ship);
-              }}
-            />
-            
-            {/* 3. Right Clone */}
-            <WorldInstance 
-              offset={MAP_WIDTH}
-              geoData={geoData}
-              routes={routes}
-              selectedRouteId={selectedRouteId}
-              pulseOpacity={pulseOpacity}
-              origin={origin}
-              destination={destination}
-              ships={activeShips}
-              onRouteClick={handleRouteClick}
-              onShipClick={(ship: Ship) => {
-                if (onShipSelect) onShipSelect(ship);
-              }}
-            />
+            {/* Dynamic World Instances for TRUE infinite scrolling */}
+            {/* 动态世界副本实现真正的无限滚动 */}
+            {worldInstances.map((worldIndex) => (
+              <WorldInstance 
+                key={`world-${worldIndex}`}
+                offset={MAP_WIDTH * worldIndex}
+                geoData={geoData}
+                routes={routes}
+                selectedRouteId={selectedRouteId}
+                pulseOpacity={pulseOpacity}
+                origin={origin}
+                destination={destination}
+                ships={activeShips}
+                customMarkers={customMarkers}
+                onRouteClick={handleRouteClick}
+                onShipClick={(ship: Ship) => {
+                  if (onShipSelect) onShipSelect(ship);
+                }}
+              />
+            ))}
 
           </ZoomableGroup>
         </ComposableMap>

@@ -11,6 +11,7 @@ import {
 import ReactMarkdown from 'react-markdown';
 import { chatAPI } from '../../services/api';
 import styles from './HandoffDetail.module.css';
+import { formatUTCDateTimeCN } from '../../utils/timeUtils';
 
 const { TextArea } = Input;
 
@@ -249,7 +250,7 @@ const HandoffDetail = () => {
                           {getSenderText(message.sender.toLowerCase())}
                         </Tag>
                         <span className={styles.messageTime}>
-                          {new Date(message.created_at).toLocaleString('zh-CN')}
+                          {formatUTCDateTimeCN(message.created_at)}
                         </span>
                         {message.ai_confidence !== undefined && (
                           <Tag>置信度: {(message.ai_confidence * 100).toFixed(0)}%</Tag>

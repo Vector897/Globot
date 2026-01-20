@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { chatAPI } from '../../services/api';
 import HandoffStats from './HandoffStats';
 import styles from './HandoffQueue.module.css';
+import { formatUTCDateTimeCN } from '../../utils/timeUtils';
 
 const HandoffQueue = () => {
   const [handoffs, setHandoffs] = useState([]);
@@ -158,11 +159,11 @@ const HandoffQueue = () => {
       render: (name) => name || '-'
     },
     {
-      title: '创建时间',
+      title: '创建时间 (UTC)',
       dataIndex: 'created_at',
       key: 'created_at',
-      width: 150,
-      render: (text) => new Date(text).toLocaleString('zh-CN'),
+      width: 180,
+      render: (text) => formatUTCDateTimeCN(text),
       sorter: (a, b) => new Date(a.created_at) - new Date(b.created_at)
     },
     {
