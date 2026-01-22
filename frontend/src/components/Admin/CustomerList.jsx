@@ -3,6 +3,7 @@ import { Table, Tag, Button, Input, Space, message as antMessage } from 'antd';
 import { EyeOutlined, ReloadOutlined, SearchOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { chatAPI } from '../../services/api';
+import { formatUTCDateTimeCN } from '../../utils/timeUtils';
 
 const CustomerList = () => {
   const [customers, setCustomers] = useState([]);
@@ -75,10 +76,10 @@ const CustomerList = () => {
       defaultSortOrder: 'ascend'
     },
     {
-      title: '创建时间',
+      title: '创建时间 (UTC)',
       dataIndex: 'created_at',
       key: 'created_at',
-      render: (text) => new Date(text).toLocaleString('zh-CN'),
+      render: (text) => formatUTCDateTimeCN(text),
       sorter: (a, b) => new Date(a.created_at) - new Date(b.created_at)
     },
     {
