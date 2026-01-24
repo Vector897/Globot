@@ -1,0 +1,60 @@
+# 1. 虚拟船舶资料 (Virtual Ship Data)
+
+基于上海至鹿特丹航线背景生成的模拟数据：
+
+## 船舶基础信息 (Vessel Particulars)
+* **船名 (Vessel Name):** COSCO SHIPPING NEBULA (虚拟)
+* **呼号 (Call Sign):** VRAB2
+* **IMO 编号:** 9876543
+* **MMSI 码:** 477123456
+* **船旗 (Flag):** Hong Kong, China
+* **船舶类型 (Type):** Ultra Large Container Vessel (ULCV)
+
+## 航次信息 (Voyage Information)
+* **原定航次 (Original Voyage):** 045W (Westbound, via Suez)
+* **变更后航次 (New Voyage):** 045W (Westbound, via Cape of Good Hope) - *注：部分船公司可能添加后缀如 "045W-C"*
+* **起运港 (Port of Loading):** Shanghai Yangshan (CNYSN)
+* **目的港 (Port of Discharge):** Rotterdam World Gateway (NLRTM)
+* **原定 ETD/ETA:** 2026-01-20 (Shanghai) / 2026-02-22 (Rotterdam)
+* **预计新 ETA:** 2026-03-08 (Rotterdam) - *增加约14天航程*
+
+## 货物信息 (Cargo Details)
+* **货物名称:** 智能手表零部件 (Smartwatch Components including Lithium Ion Batteries)
+* **HS 编码:** 8517.7900 (零部件), 8507.6000 (锂电池)
+* **危险品属性:** Class 9, UN 3481 (Lithium ion batteries contained in equipment)
+* **重量/体积:** 12,500 KGS / 45 CBM (1x40'HQ Container)
+
+# 2. 航线变更申报材料及流程对比分析 (Comparison Analysis)
+
+## 核心差异总结
+
+| 信息类别 | 能否从原文件(直达)获取 | 备注/来源 |
+| :--- | :--- | :--- |
+| **货物物理属性** | ✅ 是 | HS编码、货物描述、危险品等级 (Class 9)、UN38.3测试报告等静态数据保持不变。 |
+| **贸易主体信息** | ✅ 是 | 发货人、收货人、EORI号、出口许可证、最终用户证明等背景资料不变。 |
+| **航次与路径数据** | ❌ 否 | 需获取新航次号、取消的原中转港 (如Jebel Ali)、新增的挂靠港 (如Cape Town)。 |
+| **动态合规文件** | ❌ 否 | 需重新计算ETA、查询南非补给港口要求、确认欧盟碳税 (ETS) 新里程。 |
+| **外部证明材料** | ❌ 否 | 必须获取船公司发布的“不可抗力/改道官方公告”作为海关变更舱单的证据。 |
+
+## 详细分析
+
+### 1. 可直接复用的信息 (Static Data)
+以下信息在航线变更中通常保持稳定，可直接沿用原申报材料：
+* **商品归类 (HS Code):** 智能手表零部件 (8517.79) 及锂电池 (8507.60) 的归类逻辑。
+* **危险品技术文档:** MSDS (化学品安全说明书) 和 UN38.3 测试摘要，因为电池本身的物理性质未变。
+* **出口管制文档:** 商务部两用物项许可证及最终用户证明 (EUEC)，只要最终目的国仍为荷兰，且未落入新制裁区。
+* **贸易代码:** 欧盟 EORI 号码及增值税号。
+
+### 2. 需另外查询/实时更新的信息 (Dynamic Data)
+以下信息因物理路径改变而失效，必须获取最新数据：
+* **航行计划 (Voyage Plan):**
+    * 需查询南大西洋(好望角)的实时气象与海况，制定避险方案。
+    * 需重新计算预计抵达时间 (ETA)，用于更新 ICS2 和 Portbase 系统。
+* **中转/补给港口:**
+    * 原霍尔木兹海峡/苏伊士路径的中转港 (如 Jebel Ali, Jeddah) 全部取消。
+    * 需确认非洲沿岸 (如 Durban, Cape Town, Port Louis) 的“仅加油” (Bunkering Only) 申报要求及港口拥堵情况。
+* **费用与保险:**
+    * 需查询保险公司针对绕行好望角的战争险附加费 (WRS) 调整。
+    * 需根据欧盟 ETS 碳价及增加的航程 (约3500海里) 重新核算碳配额成本。
+* **法律证明:**
+    * **船公司改道公告:** 必须从船公司官网获取针对该特定航次的正式通知，作为向中国海关申请变更舱单的“不可抗力”证据。

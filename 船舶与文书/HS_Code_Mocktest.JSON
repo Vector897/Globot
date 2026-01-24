@@ -1,0 +1,51 @@
+[
+  {
+    "id": "HS_851830",
+    "source": "Harmonized Tariff Schedule 2024",
+    "content_type": "tariff_regulation",
+    "data": {
+      "hs_code": "8518.30",
+      "short_description": "Headphones and earphones, whether or not combined with a microphone",
+      "long_description": "Headphones and earphones, whether or not combined with a microphone, and sets consisting of a microphone and one or more loudspeakers.",
+      "category": "Electronics",
+      "is_hazardous": false,
+      "tariffs": [
+        {
+          "destination_country": "DE",
+          "country_name": "Germany (EU)",
+          "base_rate": "0%",
+          "notes": "Duty-free under ITA (Information Technology Agreement)."
+        },
+        {
+          "destination_country": "US",
+          "country_name": "United States",
+          "base_rate": "0%",
+          "additional_duties": "Check Section 301 tariffs if origin is China."
+        }
+      ]
+    },
+    "embedding_content": "HS Code 8518.30 covering Headphones and earphones, Bluetooth headsets. Import duty for Germany (EU) is 0%. US base rate is 0% but may be subject to Section 301 China trade war tariffs."
+  },
+  {
+    "id": "HS_851762",
+    "source": "Harmonized Tariff Schedule 2024",
+    "content_type": "tariff_regulation",
+    "data": {
+      "hs_code": "8517.62",
+      "short_description": "Machines for the reception, conversion and transmission or regeneration of voice, images or other data",
+      "long_description": "Includes Smartwatches, Bluetooth adapters, and IoT gateways. Excluding simple headphones.",
+      "category": "Electronics",
+      "is_hazardous": true,
+      "hazardous_note": "Often contains Lithium Batteries (UN3481).",
+      "tariffs": [
+        {
+          "destination_country": "DE",
+          "country_name": "Germany (EU)",
+          "base_rate": "0%",
+          "notes": "Standard VAT 19% applies on import value."
+        }
+      ]
+    },
+    "embedding_content": "HS Code 8517.62 covering Smartwatches, IoT devices, and data transmission equipment. Distinct from headphones. Often contains Lithium Ion batteries requiring UN3481 compliance. Duty free in EU."
+  }
+]

@@ -296,6 +296,12 @@ site/
 # Ignore all markdown files except README.md
 *.md
 !README.md
+!问题.md
+!评委审查数据重点.md
+!会议稿_JHU队友.md
+!会议稿_金融姐.md
 
+# Agent folder (AI-IDE configuration, not for version control)
+.agent/
 
 
