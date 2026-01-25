@@ -32,12 +32,20 @@ class Settings(BaseSettings):
     
     # 向量数据库
     chroma_persist_dir: str = "./data/vectordb"
-    
+    maritime_kb_persist_dir: str = "./data/vectordb/maritime"
+
     # 文件上传
     upload_dir: str = "./data/uploads"
+    documents_upload_dir: str = "./data/uploads/documents"
     max_upload_size_mb: int = 50
-    
-    
+
+    # LandingAI Document Extraction
+    landing_ai_api_key: Optional[str] = None
+    landing_ai_base_url: str = "https://api.landing.ai"
+
+    # Maritime Compliance Settings
+    maritime_regulations_dir: str = "./data/maritime_regulations"
+
     # 系统配置
     log_level: str = "INFO"
     debug: bool = True

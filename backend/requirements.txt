@@ -19,6 +19,23 @@ pydantic_core==2.33.2
 crewai==1.7.2
 openai==1.83.0
 
+# RAG/Embeddings
+langchain>=0.1.0
+langchain-community>=0.0.10
+chromadb>=0.4.0
+sentence-transformers>=2.2.0
+rank_bm25>=0.2.2
+
+# Document Processing
+pypdf2>=3.0.0
+Pillow>=10.0.0
+python-magic>=0.4.27
+aiofiles>=0.8.0,<1.0.0
+python-dateutil>=2.8.2
+
+# LandingAI Document Extraction
+landingai>=0.3.0
+
 # Configuration
 python-dotenv==1.1.1
 
