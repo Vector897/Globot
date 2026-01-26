@@ -3,7 +3,6 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ConfigProvider } from 'antd';
 import zhCN from 'antd/locale/zh_CN';
 import {
-  ClerkProvider,
   SignedIn,
   SignedOut,
   RedirectToSignIn,
@@ -45,7 +44,6 @@ function App() {
   return (
     <ConfigProvider locale={zhCN}>
       <HeaderProvider>
-        <ClerkProvider publishableKey={PUBLISHABLE_KEY}>
           <BrowserRouter>
             <CommonHeader />
             <RouteTracker />
@@ -103,7 +101,6 @@ function App() {
               />
             </Routes>
           </BrowserRouter>
-        </ClerkProvider>
       </HeaderProvider>
     </ConfigProvider>
   );
