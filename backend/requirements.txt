@@ -10,6 +10,10 @@ psycopg2-binary>=2.9.0
 sqlalchemy==2.0.23
 alembic==1.13.1
 
+# Auth
+pyjwt
+cryptography
+
 # AI / ML
 langchain==1.2.0
 langchain-community==0.4.1

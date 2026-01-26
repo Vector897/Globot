@@ -47,5 +47,48 @@
       ]
     },
     "embedding_content": "HS Code 8517.62 covering Smartwatches, IoT devices, and data transmission equipment. Distinct from headphones. Often contains Lithium Ion batteries requiring UN3481 compliance. Duty free in EU."
+  },
+  {
+    "id": "HS_851779",
+    "source": "Harmonized Tariff Schedule 2024",
+    "content_type": "tariff_regulation",
+    "data": {
+      "hs_code": "8517.79",
+      "short_description": "Parts of telephone sets and other apparatus for transmission of data",
+      "long_description": "Includes Smartwatch components and specialized sub-assemblies. Shared static data across diverted routes.",
+      "category": "Electronics",
+      "is_hazardous": false,
+      "tariffs": [
+        {
+          "destination_country": "NL",
+          "country_name": "Netherlands (EU)",
+          "base_rate": "0%",
+          "notes": "ITA compliant component."
+        }
+      ]
+    },
+    "embedding_content": "HS Code 8517.79 covering Smartwatch components and parts. Static data remains valid during route changes. Duty free in Netherlands."
+  },
+  {
+    "id": "HS_850760",
+    "source": "Harmonized Tariff Schedule 2024",
+    "content_type": "tariff_regulation",
+    "data": {
+      "hs_code": "8507.60",
+      "short_description": "Lithium-ion accumulators (Lithium Batteries)",
+      "long_description": "Lithium-ion batteries used in smartwatches and consumer electronics.",
+      "category": "Energy Storage / Hazardous",
+      "is_hazardous": true,
+      "hazardous_note": "UN 3481 / UN 38.3 Testing Required. Class 9 Dangerous Goods.",
+      "tariffs": [
+        {
+          "destination_country": "NL",
+          "country_name": "Netherlands (EU)",
+          "base_rate": "2.7%",
+          "notes": "Anti-dumping checks may apply."
+        }
+      ]
+    },
+    "embedding_content": "HS Code 8507.60 covering Lithium-ion batteries (UN 3481). Categorized as Class 9 Hazardous. UN 38.3 test report required for both direct and diverted routes via Cape."
   }
 ]

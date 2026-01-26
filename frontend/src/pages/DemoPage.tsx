@@ -14,7 +14,7 @@ import { AgentCoTPanel } from '../components/AgentCoTPanel';
 import { Route, GlobalPort } from '../utils/routeCalculator';
 import { Ship } from '../utils/shipData';
 import { ShipDetailsCard } from '../components/ShipDetailsCard';
-import { Globe, Map, RefreshCw, Shield, Brain, ChevronRight, ChevronLeft, ChevronUp, ChevronDown } from 'lucide-react';
+import { Home, Globe, Map, RefreshCw, Shield, Brain, ChevronRight, ChevronLeft, ChevronUp, ChevronDown } from 'lucide-react';
 
 import { 
   MarketSentinelResponse, 
@@ -96,7 +96,7 @@ interface ExecutionSummary {
   estimated_savings: string;
 }
 
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 // ...
 import { MAJOR_PORTS } from '../data/ports';
 
@@ -104,6 +104,7 @@ import { MAJOR_PORTS } from '../data/ports';
 export const DemoPage: React.FC = () => {
   const { connect, events, send } = useWebSocket();
   const location = useLocation();
+  const navigate = useNavigate();
 
   const [demoStarted, setDemoStarted] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -565,6 +566,15 @@ export const DemoPage: React.FC = () => {
             Change Route
           </button>
 
+          {/* Users Home Button */}
+          <button
+            onClick={() => navigate('/usershome')}
+            className="px-3 py-1.5 rounded-sm text-xs font-medium transition-all flex items-center gap-2 bg-[#0a0e1a] border border-[#1a2332] text-white/60 hover:text-white/90 hover:border-blue-500/50"
+          >
+            <Home className="w-3.5 h-3.5" strokeWidth={2} />
+            Home
+          </button>
+
           {/* 2D/3D Toggle */}
           <div className="flex items-center gap-1 bg-[#0a0e1a] border border-[#1a2332] rounded-sm p-1">
             <button
@@ -590,6 +600,15 @@ export const DemoPage: React.FC = () => {
               3D
             </button>
           </div>
+
+          {/* Admin Button */}
+          <button
+            onClick={() => navigate('/admin')}
+            className="px-3 py-1.5 rounded-sm text-xs font-medium transition-all flex items-center gap-2 bg-[#0a0e1a] border border-[#1a2332] text-white/60 hover:text-white/90 hover:border-red-500/50"
+          >
+            <Shield className="w-3.5 h-3.5" strokeWidth={2} />
+            Admin
+          </button>
 
           <div className="flex items-center gap-2 px-3 py-1.5 bg-[#5a9a7a]/20 border border-[#5a9a7a]/30 rounded-sm">
             <div className="w-1.5 h-1.5 rounded-full bg-[#5a9a7a] animate-pulse" />

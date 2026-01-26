@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
-import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@clerk/clerk-react';
+import { useNavigate, Link } from 'react-router-dom';
 import {
   Shield,
   Eye,
@@ -131,9 +132,12 @@ interface PaymentModalProps {
   onClose: () => void;
   selectedTier: string;
   onProceedToDemo: () => void;
+  onSignIn: (e?: React.MouseEvent) => void;
 }
 
-const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, selectedTier, onProceedToDemo }) => {
+const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, selectedTier, onProceedToDemo, onSignIn }) => {
+  const { isSignedIn } = useAuth();
+  
   if (!isOpen) return null;
 
   return (
@@ -186,8 +190,11 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, selectedTi
         </div>
 
         <div className="payment-modal-footer">
-          <button className="payment-btn-secondary" onClick={onClose}>
-            Cancel
+          <button className="payment-btn-secondary" onClick={(e) => {
+              console.log("[PaymentModal] Action button clicked, isSignedIn:", isSignedIn);
+              onSignIn(e);
+          }}>
+            {isSignedIn ? "Go to Dashboard" : "Sign In Now"}
           </button>
           <button className="payment-btn-primary" onClick={onProceedToDemo}>
             <Play className="w-4 h-4" />
@@ -202,6 +209,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, selectedTi
 // Main Payment Page Component
 export const PaymentPage: React.FC = () => {
   const navigate = useNavigate();
+  const { isSignedIn } = useAuth();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedTier, setSelectedTier] = useState('Pro');
 
@@ -213,6 +221,23 @@ export const PaymentPage: React.FC = () => {
   const handleProceedToDemo = () => {
     setIsModalOpen(false);
     navigate('/port');
+  };
+
+  const handleSignIn = (e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    
+    setIsModalOpen(false);
+
+    if (isSignedIn) {
+      console.warn("[PaymentPage] User already signed in. Navigating to /port");
+      setTimeout(() => navigate('/port'), 0);
+    } else {
+      console.warn("[PaymentPage] User not signed in. Navigating to /sign-in");
+      setTimeout(() => navigate('/sign-in'), 0);
+    }
   };
 
   const features = [
@@ -556,6 +581,7 @@ export const PaymentPage: React.FC = () => {
         onClose={() => setIsModalOpen(false)}
         selectedTier={selectedTier}
         onProceedToDemo={handleProceedToDemo}
+        onSignIn={handleSignIn}
       />
     </div>
   );
