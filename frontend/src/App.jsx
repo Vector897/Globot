@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ConfigProvider } from 'antd';
 import zhCN from 'antd/locale/zh_CN';
 import {
+  ClerkProvider,
   SignedIn,
   SignedOut,
   RedirectToSignIn,
@@ -18,7 +19,6 @@ import { AdminDashboard } from './pages/admin/AdminDashboard';
 import { CommonHeader } from './components/CommonHeader';
 import { HeaderProvider } from './context/HeaderContext';
 
-import { ClerkProvider, SignedIn, SignedOut, RedirectToSignIn } from '@clerk/clerk-react';
 import { SignInPage } from './pages/SignInPage';
 import { AdminPage } from './pages/AdminPage';
 import { UsersHome } from './pages/UsersHome';

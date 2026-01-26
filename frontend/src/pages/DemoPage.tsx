@@ -585,7 +585,6 @@ export const DemoPage: React.FC = () => {
         />
       )}
 
-<<<<<<< HEAD
       {/* Header */}
       <header className="h-14 bg-[#0f1621] border-b border-[#1a2332] px-6 flex items-center justify-between z-20">
         <div className="flex items-center gap-3 min-w-0">
@@ -672,8 +671,6 @@ export const DemoPage: React.FC = () => {
         </div>
       </header>
 
-=======
->>>>>>> origin/main
       {/* Main content */}
       <div className="flex-1 flex overflow-hidden min-h-0">
         {/* Map section */}
