@@ -10,6 +10,10 @@ from datetime import datetime
 import uvicorn
 import logging
 import hashlib
+from dotenv import load_dotenv
+
+# 加载环境变量
+load_dotenv()
 
 # Import modules
 from database import get_db, Base, engine
@@ -21,6 +25,7 @@ from core.crew_orchestrator import CrewAIOrchestrator, get_crew_orchestrator
 from core.crew_stock_research import build_company_research_crew
 from core.hedge_agent import get_hedge_agent
 from services.market_data_service import get_market_data_service
+from core.clerk_auth import get_current_user, User
 
 from api.v2.demo_routes import router as demo_router
 from api.v2.market_sentinel_routes import router as market_sentinel_router
@@ -44,6 +49,58 @@ app = FastAPI(
 app.include_router(demo_router)
 app.include_router(market_sentinel_router)
 app.include_router(hedge_router)
+from api.analytics import router as analytics_router
+app.include_router(analytics_router)
+
+from api.deps import get_current_user
+
+@app.get("/api/protected")
+def read_protected(request: Request, user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
+    """
+    Test protected route with Admin Whitelist Check and Stats
+    """
+    # Clerk JWT claims often store email in 'email' or custom claims.
+    # Standard Clerk session token might not have email directly in root.
+    
+    # Check whitelist
+    import os
+    whitelist = os.getenv("ADMIN_WHITELIST", "").split(",")
+    # Clean whitespace
+    whitelist = [e.strip() for e in whitelist]
+    
+    # 1. Try to get email from JWT claims (preferred if configured)
+    user_email = user.get("email", "")
+    
+    # 2. If not in JWT, check the Mock Header (Hackathon workaround)
+    if not user_email:
+        user_email = request.headers.get("X-User-Email", "")
+    
+    is_admin = False
+    if user_email and user_email in whitelist:
+        is_admin = True
+    
+    # Collect Stats if Admin
+    stats = {}
+    if is_admin:
+        try:
+            total_users = db.query(Customer).count()
+            total_messages = db.query(Message).count()
+            stats = {
+                "total_users": total_users,
+                "total_messages": total_messages
+            }
+        except Exception as e:
+            logger.error(f"Error fetching stats: {e}")
+            stats = {"error": "Failed to fetch stats"}
+        
+    return {
+        "message": "You are authenticated",
+        "user_id": user.get("sub"),
+        "email": user_email,
+        "is_admin": is_admin,
+        "claims": user,
+        "stats": stats
+    }
 
 
 # 配置CORS
@@ -236,7 +293,11 @@ async def chat(
     }
 
 @app.post("/api/customers", status_code=201)
-def create_customer(customer: CustomerCreate, db: Session = Depends(get_db)):
+def create_customer(
+    customer: CustomerCreate, 
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user)
+):
     """创建客户"""
     # 检查邮箱是否已存在
     existing = db.query(Customer).filter(Customer.email == customer.email).first()
@@ -267,7 +328,10 @@ def create_customer(customer: CustomerCreate, db: Session = Depends(get_db)):
     }
 
 @app.get("/api/customers")
-def list_customers(db: Session = Depends(get_db)):
+def list_customers(
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user)
+):
     """获取客户列表"""
     customers = db.query(Customer).order_by(Customer.priority_score.desc()).all()
     return {
@@ -520,6 +584,46 @@ def run_company_research(request: CompanyResearchRequest):
     except Exception as e:
         logger.error(f"Company research crew failed: {e}")
         raise HTTPException(status_code=500, detail=f"Company research failed: {e}")
+
+# ========== Admin Analytics API ==========
+
+@app.get("/api/admin/stats")
+def get_admin_stats(
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user)
+):
+    """获取管理后台统计数据"""
+    if user.role != "admin":
+         # In MVP, we might allow all logged in users for now, or check role
+         pass 
+
+    from sqlalchemy import func
+    from datetime import timedelta
+    
+    # 1. 客户分类统计
+    category_stats = db.query(
+        Customer.category, func.count(Customer.id)
+    ).group_by(Customer.category).all()
+    
+    # 2. 过去7天对话量趋势
+    seven_days_ago = datetime.now() - timedelta(days=7)
+    trend_stats = db.query(
+        func.date(Conversation.started_at), func.count(Conversation.id)
+    ).filter(Conversation.started_at >= seven_days_ago) \
+     .group_by(func.date(Conversation.started_at)).all()
+    
+    # 3. 平均置信度
+    avg_conf = db.query(func.avg(Conversation.avg_confidence)).scalar() or 0.85
+
+    return {
+        "categories": [{"name": str(c[0].value if c[0] else "normal"), "value": c[1]} for c in category_stats],
+        "trends": [{"date": str(t[0]), "count": t[1]} for t in trend_stats],
+        "overall": {
+            "avg_confidence": round(float(avg_conf), 2),
+            "total_customers": db.query(func.count(Customer.id)).scalar(),
+            "total_conversations": db.query(func.count(Conversation.id)).scalar()
+        }
+    }
 
 # ========== 后台任务 ==========
 

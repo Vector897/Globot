@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
-import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@clerk/clerk-react';
+import { useNavigate, Link } from 'react-router-dom';
 import {
   Shield,
   Eye,
@@ -131,9 +132,12 @@ interface PaymentModalProps {
   onClose: () => void;
   selectedTier: string;
   onProceedToDemo: () => void;
+  onSignIn: (e?: React.MouseEvent) => void;
 }
 
-const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, selectedTier, onProceedToDemo }) => {
+const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, selectedTier, onProceedToDemo, onSignIn }) => {
+  const { isSignedIn } = useAuth();
+  
   if (!isOpen) return null;
 
   return (
@@ -186,8 +190,11 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, selectedTi
         </div>
 
         <div className="payment-modal-footer">
-          <button className="payment-btn-secondary" onClick={onClose}>
-            Cancel
+          <button className="payment-btn-secondary" onClick={(e) => {
+              console.log("[PaymentModal] Action button clicked, isSignedIn:", isSignedIn);
+              onSignIn(e);
+          }}>
+            {isSignedIn ? "Go to Dashboard" : "Sign In Now"}
           </button>
           <button className="payment-btn-primary" onClick={onProceedToDemo}>
             <Play className="w-4 h-4" />
@@ -202,6 +209,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, selectedTi
 // Main Payment Page Component
 export const PaymentPage: React.FC = () => {
   const navigate = useNavigate();
+  const { isSignedIn } = useAuth();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedTier, setSelectedTier] = useState('Pro');
 
@@ -213,6 +221,23 @@ export const PaymentPage: React.FC = () => {
   const handleProceedToDemo = () => {
     setIsModalOpen(false);
     navigate('/port');
+  };
+
+  const handleSignIn = (e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    
+    setIsModalOpen(false);
+
+    if (isSignedIn) {
+      console.warn("[PaymentPage] User already signed in. Navigating to /port");
+      setTimeout(() => navigate('/port'), 0);
+    } else {
+      console.warn("[PaymentPage] User not signed in. Navigating to /sign-in");
+      setTimeout(() => navigate('/sign-in'), 0);
+    }
   };
 
   const features = [
@@ -261,29 +286,31 @@ export const PaymentPage: React.FC = () => {
 
   const pricingTiers = [
     {
-      name: 'Free',
-      price: '$0',
-      description: 'Perfect for small freight forwarders',
+      name: 'Starter',
+      price: '$999',
+      period: '/month',
+      description: 'For small-to-medium freight forwarders',
       features: [
-        '3 risk alerts per day',
-        'Basic email notifications',
-        'Single user access',
-        'Community support',
+        '10 shipping routes monitoring',
+        'Real-time risk alerts',
+        'Basic dashboard access',
+        'Email notifications',
+        'Standard support',
       ],
-      ctaText: 'Start Free',
+      ctaText: 'Start Starter Plan',
     },
     {
       name: 'Pro',
-      price: '$299',
+      price: '$4,999',
       period: '/month',
       description: 'For mid-size 3PL companies',
       features: [
-        'Unlimited risk alerts',
-        'Real-time dashboard',
-        '500 planning tasks/month',
-        'API access',
-        'Priority support',
+        'Unlimited route monitoring',
+        'Full API access',
+        'Multi-agent AI analysis',
         'Custom alert rules',
+        'Priority support',
+        'Advanced analytics',
       ],
       highlighted: true,
       ctaText: 'Start Pro Trial',
@@ -293,12 +320,12 @@ export const PaymentPage: React.FC = () => {
       price: 'Custom',
       description: 'For Global 500 shippers',
       features: [
-        'Unlimited everything',
-        'Custom AI agents',
+        'Private cloud deployment',
+        'Custom AI agent training',
         'White-glove onboarding',
-        'Gain-sharing model (20%)',
         'Dedicated success manager',
         'SLA guarantees',
+        'Unlimited users',
       ],
       ctaText: 'Contact Sales',
     },
@@ -554,6 +581,7 @@ export const PaymentPage: React.FC = () => {
         onClose={() => setIsModalOpen(false)}
         selectedTier={selectedTier}
         onProceedToDemo={handleProceedToDemo}
+        onSignIn={handleSignIn}
       />
     </div>
   );

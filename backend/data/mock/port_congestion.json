@@ -1,0 +1,89 @@
+[
+  {
+    "id": "PORT_CNSHA",
+    "port_code": "CNSHA",
+    "port_name": "Shanghai",
+    "country": "CN",
+    "data": {
+      "current_status": "MODERATE",
+      "vessel_waiting_count": 12,
+      "average_wait_time_days": 2.5,
+      "berth_utilization": 78,
+      "last_updated": "2026-01-20T08:00:00Z",
+      "alerts": [],
+      "forecast_7d": "STABLE"
+    },
+    "embedding_content": "Shanghai Port (CNSHA) current congestion is MODERATE with 12 vessels waiting, average wait time 2.5 days. Berth utilization at 78%. 7-day forecast is STABLE."
+  },
+  {
+    "id": "PORT_NLRTM",
+    "port_code": "NLRTM",
+    "port_name": "Rotterdam",
+    "country": "NL",
+    "data": {
+      "current_status": "LOW",
+      "vessel_waiting_count": 3,
+      "average_wait_time_days": 0.5,
+      "berth_utilization": 45,
+      "last_updated": "2026-01-20T08:00:00Z",
+      "alerts": [],
+      "forecast_7d": "STABLE"
+    },
+    "embedding_content": "Rotterdam Port (NLRTM) current congestion is LOW with only 3 vessels waiting, average wait time half a day. Berth utilization at 45%."
+  },
+  {
+    "id": "PORT_EGPSD",
+    "port_code": "EGPSD",
+    "port_name": "Port Said (Suez Canal)",
+    "country": "EG",
+    "data": {
+      "current_status": "CRITICAL",
+      "vessel_waiting_count": 87,
+      "average_wait_time_days": 14,
+      "berth_utilization": 100,
+      "last_updated": "2026-01-20T08:00:00Z",
+      "alerts": [
+        {
+          "type": "SECURITY",
+          "severity": "HIGH",
+          "message": "Red Sea security situation - recommend alternative routing via Cape of Good Hope",
+          "effective_date": "2024-01-15"
+        }
+      ],
+      "forecast_7d": "WORSENING"
+    },
+    "embedding_content": "CRITICAL ALERT: Port Said (Suez Canal) experiencing severe congestion with 87 vessels waiting, 14-day average delay. Security situation in Red Sea recommends Cape of Good Hope routing. Forecast is WORSENING."
+  },
+  {
+    "id": "PORT_SGSIN",
+    "port_code": "SGSIN",
+    "port_name": "Singapore",
+    "country": "SG",
+    "data": {
+      "current_status": "MODERATE",
+      "vessel_waiting_count": 18,
+      "average_wait_time_days": 1.5,
+      "berth_utilization": 82,
+      "last_updated": "2026-01-20T08:00:00Z",
+      "alerts": [],
+      "forecast_7d": "IMPROVING"
+    },
+    "embedding_content": "Singapore Port (SGSIN) congestion is MODERATE with 18 vessels waiting, average 1.5 days wait. Berth utilization 82%. Forecast is IMPROVING."
+  },
+  {
+    "id": "PORT_USLAX",
+    "port_code": "USLAX",
+    "port_name": "Los Angeles",
+    "country": "US",
+    "data": {
+      "current_status": "LOW",
+      "vessel_waiting_count": 5,
+      "average_wait_time_days": 0.8,
+      "berth_utilization": 55,
+      "last_updated": "2026-01-20T08:00:00Z",
+      "alerts": [],
+      "forecast_7d": "STABLE"
+    },
+    "embedding_content": "Los Angeles Port (USLAX) congestion is LOW with 5 vessels waiting, under 1 day wait time. Berth utilization at 55%. Operations running smoothly."
+  }
+]

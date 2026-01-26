@@ -1,0 +1,109 @@
+[
+  {
+    "id": "ROUTE_AE1",
+    "service_name": "Asia-Europe Express 1 (AE1)",
+    "carrier": "Ocean Alliance (COSCO/OOCL/Evergreen)",
+    "data": {
+      "frequency": "Weekly",
+      "vessels": 12,
+      "vessel_capacity_teu": 23000,
+      "route_ports": [
+        {"port": "Shanghai", "code": "CNSHA", "day": 0},
+        {"port": "Ningbo", "code": "CNNGB", "day": 1},
+        {"port": "Singapore", "code": "SGSIN", "day": 7},
+        {"port": "Port Said", "code": "EGPSD", "day": 21},
+        {"port": "Rotterdam", "code": "NLRTM", "day": 28},
+        {"port": "Hamburg", "code": "DEHAM", "day": 30}
+      ],
+      "transit_time_sha_rtm": 28,
+      "status": "SUSPENDED",
+      "status_reason": "Red Sea security risk - rerouting via Cape",
+      "alternative_service": "AE1-CAPE"
+    },
+    "embedding_content": "Asia-Europe Express 1 (AE1) service by Ocean Alliance. Weekly service with 23000 TEU vessels. Shanghai to Rotterdam 28 days via Suez. Currently SUSPENDED due to Red Sea security, using Cape alternative."
+  },
+  {
+    "id": "ROUTE_AE1_CAPE",
+    "service_name": "Asia-Europe Express 1 CAPE (AE1-CAPE)",
+    "carrier": "Ocean Alliance (COSCO/OOCL/Evergreen)",
+    "data": {
+      "frequency": "Weekly",
+      "vessels": 14,
+      "vessel_capacity_teu": 23000,
+      "route_ports": [
+        {"port": "Shanghai", "code": "CNSHA", "day": 0},
+        {"port": "Ningbo", "code": "CNNGB", "day": 1},
+        {"port": "Singapore", "code": "SGSIN", "day": 7},
+        {"port": "Durban", "code": "ZADUR", "day": 21},
+        {"port": "Algeciras", "code": "ESALG", "day": 35},
+        {"port": "Rotterdam", "code": "NLRTM", "day": 42},
+        {"port": "Hamburg", "code": "DEHAM", "day": 44}
+      ],
+      "transit_time_sha_rtm": 42,
+      "status": "ACTIVE",
+      "status_reason": "Temporary service via Cape of Good Hope"
+    },
+    "embedding_content": "Asia-Europe Express 1 CAPE (AE1-CAPE) alternative service. Weekly, 14 vessels deployed to maintain capacity. Shanghai to Rotterdam 42 days via Cape of Good Hope to avoid Red Sea risk."
+  },
+  {
+    "id": "ROUTE_TP6",
+    "service_name": "Trans-Pacific 6 (TP6)",
+    "carrier": "2M Alliance (MSC/Maersk)",
+    "data": {
+      "frequency": "Weekly",
+      "vessels": 11,
+      "vessel_capacity_teu": 18000,
+      "route_ports": [
+        {"port": "Shanghai", "code": "CNSHA", "day": 0},
+        {"port": "Busan", "code": "KRPUS", "day": 3},
+        {"port": "Los Angeles", "code": "USLAX", "day": 14},
+        {"port": "Oakland", "code": "USOAK", "day": 17}
+      ],
+      "transit_time_sha_lax": 14,
+      "status": "ACTIVE",
+      "status_reason": "Normal operations"
+    },
+    "embedding_content": "Trans-Pacific 6 (TP6) service by 2M Alliance (MSC/Maersk). Weekly departures from Shanghai, 14 days to Los Angeles. Currently operating normally."
+  },
+  {
+    "id": "ROUTE_FAL1",
+    "service_name": "Far East America Line 1 (FAL1)",
+    "carrier": "THE Alliance (ONE/Hapag-Lloyd/Yang Ming)",
+    "data": {
+      "frequency": "Weekly",
+      "vessels": 9,
+      "vessel_capacity_teu": 15000,
+      "route_ports": [
+        {"port": "Shanghai", "code": "CNSHA", "day": 0},
+        {"port": "Yantian", "code": "CNYTN", "day": 2},
+        {"port": "New York", "code": "USNYC", "day": 28},
+        {"port": "Savannah", "code": "USSAV", "day": 30}
+      ],
+      "transit_time_sha_nyc": 28,
+      "status": "ACTIVE",
+      "status_reason": "Normal operations via Panama Canal"
+    },
+    "embedding_content": "Far East America Line 1 (FAL1) by THE Alliance. Weekly Shanghai to US East Coast, 28 days to New York via Panama Canal. Operating normally."
+  },
+  {
+    "id": "ROUTE_AEM7",
+    "service_name": "Asia-Med Express 7 (AEM7)",
+    "carrier": "THE Alliance (ONE/Hapag-Lloyd/Yang Ming)",
+    "data": {
+      "frequency": "Weekly",
+      "vessels": 10,
+      "vessel_capacity_teu": 20000,
+      "route_ports": [
+        {"port": "Shanghai", "code": "CNSHA", "day": 0},
+        {"port": "Singapore", "code": "SGSIN", "day": 6},
+        {"port": "Colombo", "code": "LKCMB", "day": 10},
+        {"port": "Piraeus", "code": "GRPIR", "day": 22},
+        {"port": "Genoa", "code": "ITGOA", "day": 25}
+      ],
+      "transit_time_sha_pir": 22,
+      "status": "SUSPENDED",
+      "status_reason": "Mediterranean routing via Cape increases transit by 12 days"
+    },
+    "embedding_content": "Asia-Med Express 7 (AEM7) by THE Alliance. Shanghai to Mediterranean ports. Currently SUSPENDED due to Red Sea situation, Cape rerouting adds 12 days transit time."
+  }
+]

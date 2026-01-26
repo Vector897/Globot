@@ -1,0 +1,46 @@
+[
+  {
+    "id": "INCO_FOB",
+    "term_code": "FOB",
+    "full_name": "Free On Board",
+    "year": "2020",
+    "mode_of_transport": "Sea and Inland Waterway Transport Only",
+    "data": {
+      "brief": "Seller delivers when goods pass the ship's rail (are loaded on board) at the named port of shipment.",
+      "risk_transfer_point": "When goods are loaded on board the vessel at the port of shipment.",
+      "cost_allocation": {
+        "seller_pays": ["Export packaging", "Export clearance", "Transport to port of shipment", "Loading charges"],
+        "buyer_pays": ["Ocean freight", "Insurance", "Unloading at destination", "Import clearance", "Import duties/taxes"]
+      },
+      "seller_obligations": {
+        "export_clearance": true,
+        "import_clearance": false,
+        "contract_of_carriage": false,
+        "insurance": false
+      }
+    },
+    "embedding_content": "Incoterms 2020 FOB (Free On Board). Used for Sea transport only. Risk transfers to buyer once goods are loaded on board the vessel. Seller handles export customs; Buyer pays ocean freight and handles import."
+  },
+  {
+    "id": "INCO_DDP",
+    "term_code": "DDP",
+    "full_name": "Delivered Duty Paid",
+    "year": "2020",
+    "mode_of_transport": "Any mode",
+    "data": {
+      "brief": "Seller bears all costs and risks involved in bringing the goods to the place of destination.",
+      "risk_transfer_point": "When goods are placed at the disposal of the buyer, cleared for import, ready for unloading at the named place of destination.",
+      "cost_allocation": {
+        "seller_pays": ["Everything: Transport, Insurance, Export & Import Customs, Duties & Taxes"],
+        "buyer_pays": ["Unloading cost at final destination (unless contract states otherwise)"]
+      },
+      "seller_obligations": {
+        "export_clearance": true,
+        "import_clearance": true,
+        "contract_of_carriage": true,
+        "insurance": "No obligation to buy, but seller bears all risk, so insurance is recommended."
+      }
+    },
+    "embedding_content": "Incoterms 2020 DDP (Delivered Duty Paid). Maximum obligation for the Seller. Seller pays for shipping, insurance, and IMPORT DUTIES/TAXES. Seller is responsible for import clearance."
+  }
+]

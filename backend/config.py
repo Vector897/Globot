@@ -38,6 +38,10 @@ class Settings(BaseSettings):
     max_upload_size_mb: int = 50
     
     
+    # Clerk配置
+    clerk_issuer_url: Optional[str] = None
+    admin_whitelist: str = "thaumatext@gmail.com"
+
     # 系统配置
     log_level: str = "INFO"
     debug: bool = True

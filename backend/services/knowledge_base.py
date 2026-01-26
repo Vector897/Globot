@@ -15,20 +15,59 @@
 #             self.page_content = page_content
 #             self.metadata = metadata or {}
 
-# from typing import List, Optional
-# from config import get_settings
+from typing import List, Optional
+from pathlib import Path
+import json
+from config import get_settings
 
 # logger = logging.getLogger(__name__)
 # settings = get_settings()
 
-# # Optional Imports with Graceful Fallback
-# try:
-#     from langchain_community.embeddings import HuggingFaceEmbeddings
-#     from langchain_community.vectorstores import Chroma
-#     HAS_LANGCHAIN_COMMUNITY = True
-# except ImportError:
-#     HAS_LANGCHAIN_COMMUNITY = False
-#     logger.warning("langchain_community not found. KnowledgeBase will run in MOCK mode.")
+# 加载 Globot System Knowledge Base (用于 System Prompt)
+def load_globot_system_kb() -> dict:
+    """Load Globot System Knowledge Base JSON for Agent system prompts."""
+    try:
+        kb_path = Path(__file__).parent.parent.parent / "Globot System Knowledge Base.JSON"
+        if kb_path.exists():
+            with open(kb_path, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        logger.warning(f"Globot System KB not found at {kb_path}")
+    except Exception as e:
+        logger.error(f"Failed to load Globot System KB: {e}")
+    return []
+
+# 全局变量存储 System KB
+GLOBOT_SYSTEM_KB = load_globot_system_kb()
+
+def get_globot_system_prompt() -> str:
+    """Generate system prompt with Knowledge Base index."""
+    if not GLOBOT_SYSTEM_KB:
+        return "You are Globot, an AI Logistics Coordinator."
+    
+    return f"""You are Globot, an advanced AI Logistics Coordinator powered by a Multi-Agent system.
+
+Your decisions must be grounded in facts. You have access to a specialized Knowledge Base (RAG System). 
+Below is the index of documents available to you. 
+When a user asks a question, refer to the 'usage_scenario' to decide which document to retrieve content from.
+
+Available Knowledge Base Index:
+{json.dumps(GLOBOT_SYSTEM_KB, ensure_ascii=False, indent=2)}
+
+INSTRUCTIONS:
+1. Identify the intent of the user's query (e.g., Compliance, Cost, Risk).
+2. Select the most relevant document category.
+3. Use the 'keywords' to form a search query for the RAG tool.
+4. Base your final answer STRICTLY on the retrieved context.
+"""
+
+# Optional Imports with Graceful Fallback
+try:
+    from langchain_community.embeddings import HuggingFaceEmbeddings
+    from langchain_community.vectorstores import Chroma
+    HAS_LANGCHAIN_COMMUNITY = True
+except ImportError:
+    HAS_LANGCHAIN_COMMUNITY = False
+    logger.warning("langchain_community not found. KnowledgeBase will run in MOCK mode.")
 
 # try:
 #     from rank_bm25 import BM25Okapi
@@ -83,11 +122,36 @@
                     
 #                 logger.info(f"知识库初始化完成: {settings.chroma_persist_dir}")
                 
-#             except Exception as e:
-#                 logger.error(f"Failed to initialize VectorStore: {e}. Switching to MOCK mode.")
-#                 self.mock_mode = True
-#         else:
-#             logger.info("KnowledgeBase initialized in MOCK mode.")
+                # 加载 Mock 数据到 VectorStore
+                self._load_mock_data()
+                
+            except Exception as e:
+                logger.error(f"Failed to initialize VectorStore: {e}. Switching to MOCK mode.")
+                self.mock_mode = True
+        else:
+            logger.info("KnowledgeBase initialized in MOCK mode.")
+    
+    def _load_mock_data(self):
+        """Load mock data from backend/data/mock/ into VectorStore."""
+        try:
+            from services.mock_knowledge_base import MockKnowledgeBase
+            mock_kb = MockKnowledgeBase()
+            mock_docs = mock_kb.load_all()
+            
+            if mock_docs and self.vectorstore:
+                # 检查是否已加载过 (避免重复)
+                existing_ids = set(self.vectorstore.get().get('ids', []))
+                new_docs = [d for d in mock_docs if d.metadata.get('id') not in existing_ids]
+                
+                if new_docs:
+                    self.vectorstore.add_documents(new_docs)
+                    logger.info(f"Added {len(new_docs)} mock documents to VectorStore.")
+                else:
+                    logger.info("Mock documents already loaded in VectorStore.")
+        except ImportError:
+            logger.warning("MockKnowledgeBase not available, skipping mock data load.")
+        except Exception as e:
+            logger.error(f"Failed to load mock data: {e}")
 
 #     def _build_bm25_index(self):
 #         try:

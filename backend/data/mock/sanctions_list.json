@@ -1,0 +1,82 @@
+[
+  {
+    "id": "SANC_001",
+    "source": "OFAC SDN List (Mock)",
+    "content_type": "sanctions_entity",
+    "data": {
+      "entity_name": "Acme Trading Co.",
+      "entity_type": "Company",
+      "country": "IR",
+      "country_name": "Iran",
+      "program": "Iran Sanctions",
+      "listing_date": "2023-05-15",
+      "aliases": ["Acme Import Export", "ATCO Holdings"],
+      "identifiers": {
+        "registration_number": "IR-12345678"
+      }
+    },
+    "embedding_content": "Sanctioned entity Acme Trading Co. from Iran, listed under OFAC SDN for Iran Sanctions program. Also known as Acme Import Export and ATCO Holdings."
+  },
+  {
+    "id": "SANC_002",
+    "source": "UN Consolidated List (Mock)",
+    "content_type": "sanctions_entity",
+    "data": {
+      "entity_name": "RedStar Shipping LLC",
+      "entity_type": "Company",
+      "country": "RU",
+      "country_name": "Russia",
+      "program": "Russia/Ukraine Sanctions",
+      "listing_date": "2022-03-01",
+      "vessels": ["MV Northern Star", "MV Arctic Wind"],
+      "reason": "Transporting sanctioned goods to Crimea"
+    },
+    "embedding_content": "RedStar Shipping LLC sanctioned by UN for transporting goods to Crimea. Operates vessels MV Northern Star and MV Arctic Wind."
+  },
+  {
+    "id": "SANC_003",
+    "source": "EU Consolidated List (Mock)",
+    "content_type": "sanctions_entity",
+    "data": {
+      "entity_name": "Dragon Freight Forwarding",
+      "entity_type": "Company",
+      "country": "KP",
+      "country_name": "North Korea",
+      "program": "DPRK Sanctions",
+      "listing_date": "2021-08-22",
+      "aliases": ["DFF Logistics", "Ryongsong Trading"],
+      "reason": "Facilitating illicit shipments for DPRK military"
+    },
+    "embedding_content": "Dragon Freight Forwarding sanctioned by EU under DPRK Sanctions for facilitating military shipments. Also known as DFF Logistics and Ryongsong Trading."
+  },
+  {
+    "id": "SANC_CLEAN_001",
+    "source": "Compliance Check Result",
+    "content_type": "verified_entity",
+    "data": {
+      "entity_name": "Global Logistics Partners GmbH",
+      "entity_type": "Company",
+      "country": "DE",
+      "country_name": "Germany",
+      "status": "CLEAR",
+      "last_checked": "2026-01-15",
+      "note": "No matches found in OFAC, UN, or EU sanctions lists."
+    },
+    "embedding_content": "Global Logistics Partners GmbH from Germany has been verified CLEAR against all major sanctions lists including OFAC SDN, UN Consolidated, and EU sanctions."
+  },
+  {
+    "id": "SANC_CLEAN_002",
+    "source": "Compliance Check Result",
+    "content_type": "verified_entity",
+    "data": {
+      "entity_name": "Shanghai Ocean Freight Co., Ltd",
+      "entity_type": "Company",
+      "country": "CN",
+      "country_name": "China",
+      "status": "CLEAR",
+      "last_checked": "2026-01-18",
+      "note": "Verified carrier with clean compliance record."
+    },
+    "embedding_content": "Shanghai Ocean Freight Co., Ltd from China has been verified CLEAR. Reputable carrier with clean compliance record across all major sanctions databases."
+  }
+]

@@ -1,8 +1,12 @@
 # Core Web Framework
 fastapi==0.115.6
-uvicorn==0.34.3
+uvicorn[standard]==0.34.3
 starlette==0.41.3
 sse-starlette==3.0.3
+pydantic>=2.10.0
+pydantic-settings>=2.6.0
+anyio>=3.7.1,<5
+numpy>=1.26.0
 python-multipart==0.0.21
 
 # Database
@@ -19,7 +23,8 @@ pydantic_core==2.33.2
 crewai==1.7.2
 openai==1.83.0
 
-# Configuration
+# Security
+python-jose[cryptography]==3.3.0
 python-dotenv==1.1.1
 
 # WebSockets

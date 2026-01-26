@@ -1,0 +1,108 @@
+[
+  {
+    "id": "RATE_SHARTM_STD",
+    "route": "Shanghai → Rotterdam",
+    "route_code": "CNSHA-NLRTM",
+    "via": "Suez Canal (Standard)",
+    "data": {
+      "container_type": "40HC",
+      "current_rate_usd": 2850,
+      "rate_change_30d": "+15%",
+      "transit_time_days": 28,
+      "validity": "2026-01-15 to 2026-01-31",
+      "surcharges": {
+        "BAF": 450,
+        "PSS": 200,
+        "emergency_surcharge": 800
+      },
+      "total_rate_usd": 4300,
+      "carrier": "COSCO",
+      "notes": "Emergency surcharge due to Red Sea situation"
+    },
+    "embedding_content": "Shanghai to Rotterdam via Suez, 40HC container rate is $2850 base + $1450 surcharges = $4300 total. Transit time 28 days. Rate increased 15% in last 30 days due to Red Sea emergency."
+  },
+  {
+    "id": "RATE_SHARTM_ALT",
+    "route": "Shanghai → Rotterdam",
+    "route_code": "CNSHA-NLRTM-ALT",
+    "via": "Cape of Good Hope (Alternative)",
+    "data": {
+      "container_type": "40HC",
+      "current_rate_usd": 3200,
+      "rate_change_30d": "+45%",
+      "transit_time_days": 42,
+      "validity": "2026-01-15 to 2026-01-31",
+      "surcharges": {
+        "BAF": 850,
+        "PSS": 200
+      },
+      "total_rate_usd": 4250,
+      "carrier": "MSC",
+      "notes": "Longer route but avoids Red Sea risk. Higher fuel surcharge."
+    },
+    "embedding_content": "Shanghai to Rotterdam via Cape of Good Hope (alternative route), 40HC container rate is $3200 base + $1050 surcharges = $4250 total. Transit time 42 days (+14 days vs Suez). Rate increased 45% due to demand surge."
+  },
+  {
+    "id": "RATE_SHALAX",
+    "route": "Shanghai → Los Angeles",
+    "route_code": "CNSHA-USLAX",
+    "via": "Trans-Pacific Direct",
+    "data": {
+      "container_type": "40HC",
+      "current_rate_usd": 1950,
+      "rate_change_30d": "-5%",
+      "transit_time_days": 14,
+      "validity": "2026-01-15 to 2026-01-31",
+      "surcharges": {
+        "BAF": 280,
+        "PSS": 0
+      },
+      "total_rate_usd": 2230,
+      "carrier": "Evergreen",
+      "notes": "Stable Pacific route, no major disruptions"
+    },
+    "embedding_content": "Shanghai to Los Angeles Trans-Pacific route, 40HC container $1950 base + $280 BAF = $2230 total. Transit time 14 days. Rate decreased 5% as Pacific routes remain stable."
+  },
+  {
+    "id": "RATE_SHAHAM",
+    "route": "Shanghai → Hamburg",
+    "route_code": "CNSHA-DEHAM",
+    "via": "Cape of Good Hope",
+    "data": {
+      "container_type": "40HC",
+      "current_rate_usd": 3350,
+      "rate_change_30d": "+38%",
+      "transit_time_days": 44,
+      "validity": "2026-01-15 to 2026-01-31",
+      "surcharges": {
+        "BAF": 900,
+        "PSS": 250
+      },
+      "total_rate_usd": 4500,
+      "carrier": "Hapag-Lloyd",
+      "notes": "All services diverted from Suez to Cape routing"
+    },
+    "embedding_content": "Shanghai to Hamburg via Cape of Good Hope, 40HC container $3350 base + $1150 surcharges = $4500 total. Transit time 44 days. Rate surged 38% due to Red Sea rerouting."
+  },
+  {
+    "id": "RATE_NINGRTM",
+    "route": "Ningbo → Rotterdam",
+    "route_code": "CNNGB-NLRTM",
+    "via": "Cape of Good Hope",
+    "data": {
+      "container_type": "40HC",
+      "current_rate_usd": 3100,
+      "rate_change_30d": "+40%",
+      "transit_time_days": 43,
+      "validity": "2026-01-15 to 2026-01-31",
+      "surcharges": {
+        "BAF": 880,
+        "PSS": 200
+      },
+      "total_rate_usd": 4180,
+      "carrier": "OOCL",
+      "notes": "Similar to Shanghai route, Cape routing mandatory"
+    },
+    "embedding_content": "Ningbo to Rotterdam via Cape, 40HC container $3100 base + $1080 surcharges = $4180 total. Transit 43 days. 40% rate increase due to Red Sea crisis."
+  }
+]

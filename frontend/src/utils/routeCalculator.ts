@@ -8,7 +8,9 @@ import {
   PATH_EUROPE_USEC,
   PATH_INTRA_ASIA,
   PATH_ASIA_MED_SUEZ,
-  PATH_ASIA_MED_CAPE
+  PATH_ASIA_MED_CAPE,
+  PATH_SPINE_MED,
+  PATH_SPINE_NORTH_ATLANTIC
 } from './routeData';
 import { MAJOR_PORTS } from '../data/ports';
 
@@ -174,54 +176,171 @@ export function calculateRoutes(origin: [number, number], destination: [number, 
     }];
   }
 
-  // 5. INTRA-ASIA (Fallback/Specific)
-  if (isAsia(originPort) && isAsia(destPort)) {
-     // Use dynamic for short distance but try to map to predefined if close
-     return calculateDynamicRoutes(originPort, destPort);
+  // Heuristics for Regions
+  const medPorts = new Set(['Barcelona', 'Valencia', 'Algeciras', 'Genoa', 'Piraeus', 'Port Said', 'Tanger Med', 'Marsaxlokk', 'Istanbul', 'Trieste']);
+  const isMed = (p: GlobalPort) => medPorts.has(p.name) || (p.coordinates[1] > 30 && p.coordinates[1] < 46 && p.coordinates[0] > -6 && p.coordinates[0] < 36);
+  const isNorthEurope = (p: GlobalPort) => p.region === 'Europe' && !isMed(p);
+  const isAsiaPort = (p: GlobalPort) => p.region === 'Asia' || p.region === 'Middle East';
+
+  // --- STRATEGY 1: INTRA-MEDITERRANEAN (Direct via Med Spine) ---
+  if (isMed(originPort) && isMed(destPort)) {
+      return [{
+          id: "route-med-direct",
+          name: "Mediterranean Direct",
+          riskLevel: "low",
+          color: "#8e44ad",
+          strokeWidth: 2,
+          waypoints: stitchSpineRoute(originPort, destPort, PATH_SPINE_MED),
+          waypointNames: [originPort.name, "Med Highway", destPort.name],
+          distance: calculateTotalDistance(stitchSpineRoute(originPort, destPort, PATH_SPINE_MED)),
+          estimatedTime: 4,
+          description: "Direct Mediterranean Sea Lane"
+      }];
   }
 
-  // 6. ASIA <-> MEDITERRANEAN (e.g. Tanger Med, Barcelona) -> Special Handling
-  // because "Europe" check might be strict or we want specific Med paths
-  const isMed = (p: GlobalPort) => p.region === 'Africa' || p.region === 'Europe'; 
-  if ((isAsia(originPort) && isMed(destPort)) || (isMed(originPort) && isAsia(destPort))) {
-      // Prioritize these over generic Europe for Mediterranean ports
-      if (['Tanger Med', 'Barcelona', 'Valencia', 'Algeciras', 'Genoa', 'Piraeus', 'Port Said'].includes(originPort.name) || 
-          ['Tanger Med', 'Barcelona', 'Valencia', 'Algeciras', 'Genoa', 'Piraeus', 'Port Said'].includes(destPort.name)) {
-          
-            return [
-                {
-                    id: "route-med-cape",
-                    name: "Cape of Good Hope (Med)",
-                    riskLevel: "low",
-                    color: "#2ecc71",
-                    strokeWidth: 3,
-                    waypoints: adjustDirection(PATH_ASIA_MED_CAPE, originPort, destPort),
-                    waypointNames: [originPort.name, "Cape Town", destPort.name],
-                    distance: 14000,
-                    estimatedTime: 32,
-                    description: "Secure route to Mediterranean"
-                },
-                {
-                    id: "route-med-suez",
-                    name: "Suez Canal (Med)",
-                    riskLevel: "high",
-                    color: "#e74c3c",
-                    strokeWidth: 3,
-                    waypoints: adjustDirection(PATH_ASIA_MED_SUEZ, originPort, destPort),
-                    waypointNames: [originPort.name, "Suez", destPort.name],
-                    distance: 9000,
-                    estimatedTime: 20,
-                    description: "Direct Med access via Suez"
-                }
-            ];
+  // --- STRATEGY 2: NORTH EUROPE -> MEDITERRANEAN (Via Atlantic Spine) ---
+  if ((isNorthEurope(originPort) && isMed(destPort)) || (isMed(originPort) && isNorthEurope(destPort))) {
+      // Always route via Gibraltar
+      // 1. Get Atlantic Spine (N <-> S)
+      const atlSpine = originPort.coordinates[1] > destPort.coordinates[1] ? PATH_SPINE_NORTH_ATLANTIC : [...PATH_SPINE_NORTH_ATLANTIC].reverse();
+      
+      // 2. Get Med Spine Segment
+      // If entering from Gibraltar (West), we find the path on Med spine to Destination
+      // Gibraltar is at [-5.5, 36.0], which is index 0 of MED_SPINE
+      const medSegment = isNorthEurope(originPort) 
+          ? stitchSpineRoute({ coordinates: [-5.5, 36.0] } as any, destPort, PATH_SPINE_MED) // North -> Med
+          : stitchSpineRoute(originPort, { coordinates: [-5.5, 36.0] } as any, PATH_SPINE_MED); // Med -> North
+
+      // Combine: Origin -> Atl Spine -> Med Segment -> Dest
+      // Note: stitchSpineRoute handles the Origin/Dest connection, so we just join the arrays roughly
+      // We need to be careful about duplication at the join point (Gibraltar)
+      
+      let finalPath: [number, number][];
+      if (isNorthEurope(originPort)) {
+          finalPath = [
+              originPort.coordinates, 
+              ...atlSpine, 
+              ...medSegment
+          ];
+      } else {
+          finalPath = [
+              ...medSegment,
+              ...atlSpine,
+              destPort.coordinates
+          ];
+      }
+
+      return [{
+          id: "route-eur-med",
+          name: "Europe-Med Connector",
+          riskLevel: "low",
+          color: "#27ae60",
+          strokeWidth: 2,
+          waypoints: finalPath,
+          waypointNames: [originPort.name, "Gibraltar", destPort.name],
+          distance: calculateTotalDistance(finalPath),
+          estimatedTime: 8,
+          description: "Via Gibraltar Strait"
+      }];
+  }
+
+  // --- STRATEGY 3: ASIA -> MEDITERRANEAN (Via Suez + Med Spine) ---
+  if ((isAsiaPort(originPort) && isMed(destPort)) || (isMed(originPort) && isAsiaPort(destPort))) {
+      // 1. Asia -> Suez (Use existing high-fidelity SUEZ path, but trim the Med part)
+      // PATH_ASIA_MED_SUEZ ends at Port Said now. Perfect.
+      
+      // 2. Med Spine (Port Said <-> Destination)
+      // Port Said is at [32.0, 31.3], near end of MED_SPINE
+      
+      let asiaPart = PATH_ASIA_MED_SUEZ;
+      let medPart: [number, number][];
+      
+      if (isAsiaPort(originPort)) {
+         // Asia -> Med
+         // Med Spine needs to go FROM Port Said TO Dest
+         // Port Said is the LAST point of Med Spine. So we likely need to reverse Med Spine or find sub-segment.
+         // Actually MED_SPINE is Gib -> Suez. So Port Said is End.
+         // We want Suez -> Dest. So we need Med Spine REVERSED, then stitched to Dest.
+         medPart = stitchSpineRoute({ coordinates: [32.0, 31.3] } as any, destPort, [...PATH_SPINE_MED].reverse());
+         
+         const finalPath = [...asiaPart, ...medPart];
+         return [{
+             id: "route-asia-med",
+             name: "Asia-Med Express",
+             riskLevel: "high", // Red Sea
+             color: "#e74c3c",
+             strokeWidth: 3,
+             waypoints: finalPath,
+             waypointNames: [originPort.name, "Suez", destPort.name],
+             distance: 9500,
+             estimatedTime: 18,
+             description: "Direct via Suez Canal"
+         }];
+      } else {
+          // Med -> Asia
+          // Med Part: Dest -> Port Said
+          medPart = stitchSpineRoute(originPort, { coordinates: [32.0, 31.3] } as any, PATH_SPINE_MED);
+          const asiaRev = [...asiaPart].reverse();
+          const finalPath = [...medPart, ...asiaRev];
+           return [{
+             id: "route-med-asia",
+             name: "Med-Asia Express",
+             riskLevel: "high",
+             color: "#e74c3c",
+             strokeWidth: 3,
+             waypoints: finalPath,
+             waypointNames: [originPort.name, "Suez", destPort.name],
+             distance: 9500,
+             estimatedTime: 18,
+             description: "Direct via Suez Canal"
+         }];
       }
   }
 
-  // Fallback to Dynamic
+  // Fallback: Legacy Logic for Trans-Pacific / Cape / etc.
   return calculateDynamicRoutes(originPort, destPort);
 }
 
 // --- HELPERS ---
+
+// --- SPINE STITCHING HELPER ---
+// Projects origin/dest onto a "Sea Highway" and connects them
+function stitchSpineRoute(origin: {coordinates: [number, number]}, dest: {coordinates: [number, number]}, spine: [number, number][]): [number, number][] {
+    // 1. Find nearest index on spine for Start
+    let startIndex = 0;
+    let minStartDist = Infinity;
+    spine.forEach((pt, i) => {
+        const d = calculateDistance(origin.coordinates[1], origin.coordinates[0], pt[1], pt[0]);
+        if (d < minStartDist) {
+            minStartDist = d;
+            startIndex = i;
+        }
+    });
+
+    // 2. Find nearest index on spine for End
+    let endIndex = 0;
+    let minEndDist = Infinity;
+    spine.forEach((pt, i) => {
+        const d = calculateDistance(dest.coordinates[1], dest.coordinates[0], pt[1], pt[0]);
+        if (d < minEndDist) {
+            minEndDist = d;
+            endIndex = i;
+        }
+    });
+
+    // 3. Extract Segment
+    let segment: [number, number][] = [];
+    if (startIndex <= endIndex) {
+        segment = spine.slice(startIndex, endIndex + 1);
+    } else {
+        segment = spine.slice(endIndex, startIndex + 1).reverse();
+    }
+
+    // 4. Return stitched path (Origin -> Spine Segment -> Dest)
+    // We add origin/dest explicitly. 
+    // Optimization: If origin is very close to start point, don't duplicate
+    return [origin.coordinates, ...segment, dest.coordinates];
+}
 
 // Reverses path if going West->East vs East->West relative to definitions
 function adjustDirection(path: [number, number][], origin: GlobalPort, dest: GlobalPort): [number, number][] {
@@ -294,3 +413,4 @@ function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: numbe
 function toRad(d: number): number {
   return d * Math.PI / 180;
 }
+

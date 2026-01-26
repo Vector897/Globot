@@ -69,6 +69,19 @@ export function ShipDetailsCard({ ship, onClose }: ShipDetailsCardProps) {
                      <div className="text-sm font-medium text-white/90">{ship.fuelLevel}%</div>
                 </div>
             </div>
+            
+            {/* Position Display (New Task 26) */}
+            <div className="bg-[#0a0e1a] border border-[#1a2332] p-2 rounded-sm flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                    <MapPin className="w-3 h-3 text-[#4a90e2]" />
+                    <span className="text-[10px] text-white/40 uppercase">Position</span>
+                </div>
+                <div className="text-sm font-medium text-white/90 font-mono tracking-tight">
+                    {Math.abs(ship.position[1]).toFixed(2)}°{ship.position[1] >= 0 ? 'N' : 'S'} 
+                    <span className="mx-2 text-white/20">|</span>
+                    {Math.abs(ship.position[0]).toFixed(2)}°{ship.position[0] >= 0 ? 'E' : 'W'}
+                </div>
+            </div>
 
             {/* Route Info */}
             <div className="space-y-2">
