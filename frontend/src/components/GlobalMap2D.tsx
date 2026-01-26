@@ -378,7 +378,7 @@ export function GlobalMap2D({
         const cells: any[] = [];
         Object.keys(activeCrises).forEach(key => {
           if (activeCrises[key] && allCrisisData[key] && allCrisisData[key].cells) {
-            allCrisisData[key].cells.forEach(cell => cells.push({ hex: cell, scenario: key }));
+            allCrisisData[key].cells.forEach((cell: string) => cells.push({ hex: cell, scenario: key }));
           }
         });
         return cells;

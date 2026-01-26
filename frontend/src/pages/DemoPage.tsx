@@ -14,7 +14,7 @@ import { AgentCoTPanel } from '../components/AgentCoTPanel';
 import { Route, GlobalPort } from '../utils/routeCalculator';
 import { Ship } from '../utils/shipData';
 import { ShipDetailsCard } from '../components/ShipDetailsCard';
-import { Globe, Map, RefreshCw, Shield, Brain, ChevronRight, ChevronLeft, ChevronUp, ChevronDown } from 'lucide-react';
+import { Home, Globe, Map, RefreshCw, Shield, Brain, ChevronRight, ChevronLeft, ChevronUp, ChevronDown } from 'lucide-react';
 import { useHeader } from '../context/HeaderContext';
 
 import {
@@ -97,7 +97,7 @@ interface ExecutionSummary {
   estimated_savings: string;
 }
 
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 // ...
 import { MAJOR_PORTS } from '../data/ports';
 
@@ -105,6 +105,7 @@ import { MAJOR_PORTS } from '../data/ports';
 export const DemoPage: React.FC = () => {
   const { connect, events, send } = useWebSocket();
   const location = useLocation();
+  const navigate = useNavigate();
 
   const [demoStarted, setDemoStarted] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -584,6 +585,95 @@ export const DemoPage: React.FC = () => {
         />
       )}
 
+<<<<<<< HEAD
+      {/* Header */}
+      <header className="h-14 bg-[#0f1621] border-b border-[#1a2332] px-6 flex items-center justify-between z-20">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="w-8 h-8 bg-gradient-to-br from-[#0078d4] to-[#4a90e2] rounded-sm flex items-center justify-center shrink-0">
+            <Shield className="w-5 h-5 text-white" strokeWidth={2} />
+          </div>
+
+          <div className="min-w-0">
+                <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-cyan-300">
+                  Globot Shield
+                </h1>
+            <p className="text-xs text-white/40 truncate">
+              {origin?.name} → {destination?.name} · T+{currentTime.toFixed(0)}s · {scenarioPhase}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3 shrink-0">
+          {/* CoT Active Indicator */}
+          {isCotActive && (
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-[#4a90e2]/20 border border-[#4a90e2]/30 rounded-sm animate-pulse">
+              <Brain className="w-3.5 h-3.5 text-[#4a90e2]" />
+              <span className="text-xs text-[#4a90e2] font-medium">CoT Active</span>
+            </div>
+          )}
+
+          {/* Change Route Button */}
+          <button
+            onClick={() => setIsChangingRoute(true)}
+            className="px-3 py-1.5 rounded-sm text-xs font-medium transition-all flex items-center gap-2 bg-[#0a0e1a] border border-[#1a2332] text-white/60 hover:text-white/90 hover:border-[#4a90e2]/50"
+          >
+            <RefreshCw className="w-3.5 h-3.5" strokeWidth={2} />
+            Change Route
+          </button>
+
+          {/* Users Home Button */}
+          <button
+            onClick={() => navigate('/usershome')}
+            className="px-3 py-1.5 rounded-sm text-xs font-medium transition-all flex items-center gap-2 bg-[#0a0e1a] border border-[#1a2332] text-white/60 hover:text-white/90 hover:border-blue-500/50"
+          >
+            <Home className="w-3.5 h-3.5" strokeWidth={2} />
+            Home
+          </button>
+
+          {/* 2D/3D Toggle */}
+          <div className="flex items-center gap-1 bg-[#0a0e1a] border border-[#1a2332] rounded-sm p-1">
+            <button
+              onClick={() => setIs3D(false)}
+              className={`px-3 py-1.5 rounded-sm text-xs font-medium transition-all flex items-center gap-2 ${
+                !is3D
+                  ? 'bg-[#4a90e2]/20 text-[#4a90e2] border border-[#4a90e2]/30'
+                  : 'text-white/40 hover:text-white/60'
+              }`}
+            >
+              <Map className="w-3.5 h-3.5" strokeWidth={2} />
+              2D
+            </button>
+            <button
+              onClick={() => setIs3D(true)}
+              className={`px-3 py-1.5 rounded-sm text-xs font-medium transition-all flex items-center gap-2 ${
+                is3D
+                  ? 'bg-[#4a90e2]/20 text-[#4a90e2] border border-[#4a90e2]/30'
+                  : 'text-white/40 hover:text-white/60'
+              }`}
+            >
+              <Globe className="w-3.5 h-3.5" strokeWidth={2} />
+              3D
+            </button>
+          </div>
+
+          {/* Admin Button */}
+          <button
+            onClick={() => navigate('/admin')}
+            className="px-3 py-1.5 rounded-sm text-xs font-medium transition-all flex items-center gap-2 bg-[#0a0e1a] border border-[#1a2332] text-white/60 hover:text-white/90 hover:border-red-500/50"
+          >
+            <Shield className="w-3.5 h-3.5" strokeWidth={2} />
+            Admin
+          </button>
+
+          <div className="flex items-center gap-2 px-3 py-1.5 bg-[#5a9a7a]/20 border border-[#5a9a7a]/30 rounded-sm">
+            <div className="w-1.5 h-1.5 rounded-full bg-[#5a9a7a] animate-pulse" />
+            <span className="text-xs text-[#5a9a7a] font-medium">System Running</span>
+          </div>
+        </div>
+      </header>
+
+=======
+>>>>>>> origin/main
       {/* Main content */}
       <div className="flex-1 flex overflow-hidden min-h-0">
         {/* Map section */}

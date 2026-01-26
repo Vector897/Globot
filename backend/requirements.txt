@@ -1,8 +1,12 @@
 # Core Web Framework
 fastapi==0.115.6
-uvicorn==0.34.3
+uvicorn[standard]==0.34.3
 starlette==0.41.3
 sse-starlette==3.0.3
+pydantic>=2.10.0
+pydantic-settings>=2.6.0
+anyio>=3.7.1,<5
+numpy>=1.26.0
 python-multipart==0.0.21
 
 # Database

@@ -10,6 +10,10 @@ from datetime import datetime
 import uvicorn
 import logging
 import hashlib
+from dotenv import load_dotenv
+
+# 加载环境变量
+load_dotenv()
 
 # 导入模块
 from database import get_db, Base, engine
@@ -41,6 +45,58 @@ app = FastAPI(
 # 注册路由
 app.include_router(demo_router)
 app.include_router(market_sentinel_router)
+from api.analytics import router as analytics_router
+app.include_router(analytics_router)
+
+from api.deps import get_current_user
+
+@app.get("/api/protected")
+def read_protected(request: Request, user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
+    """
+    Test protected route with Admin Whitelist Check and Stats
+    """
+    # Clerk JWT claims often store email in 'email' or custom claims.
+    # Standard Clerk session token might not have email directly in root.
+    
+    # Check whitelist
+    import os
+    whitelist = os.getenv("ADMIN_WHITELIST", "").split(",")
+    # Clean whitespace
+    whitelist = [e.strip() for e in whitelist]
+    
+    # 1. Try to get email from JWT claims (preferred if configured)
+    user_email = user.get("email", "")
+    
+    # 2. If not in JWT, check the Mock Header (Hackathon workaround)
+    if not user_email:
+        user_email = request.headers.get("X-User-Email", "")
+    
+    is_admin = False
+    if user_email and user_email in whitelist:
+        is_admin = True
+    
+    # Collect Stats if Admin
+    stats = {}
+    if is_admin:
+        try:
+            total_users = db.query(Customer).count()
+            total_messages = db.query(Message).count()
+            stats = {
+                "total_users": total_users,
+                "total_messages": total_messages
+            }
+        except Exception as e:
+            logger.error(f"Error fetching stats: {e}")
+            stats = {"error": "Failed to fetch stats"}
+        
+    return {
+        "message": "You are authenticated",
+        "user_id": user.get("sub"),
+        "email": user_email,
+        "is_admin": is_admin,
+        "claims": user,
+        "stats": stats
+    }
 
 
 # 配置CORS
