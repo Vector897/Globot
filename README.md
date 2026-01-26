@@ -49,25 +49,25 @@
 
 ```mermaid
 graph TD
-    Client[前端 (React + Vite)]
-    MockServer[后端 (FastAPI + High-Fidelity Mock)]
+    Client["前端 (React + Vite)"]
+    MockServer["后端 (FastAPI + High-Fidelity Mock)"]
 
     subgraph "前端层 (UI/UX)"
-        Map[3D/2D 地球 (Deck.gl)]
-        CoT[思维链面板 (WebSocket)]
-        Nav[航线选择器 (/port)]
+        Map["3D/2D 地球 (Deck.gl)"]
+        CoT["思维链面板 (WebSocket)"]
+        Nav["航线选择器 (/port)"]
     end
 
     subgraph "后端逻辑 (Python)"
-        WS[WebSocket 事件流]
-        Sentinel[市场哨兵 Mock 服务]
-        Controller[自动播放控制器]
+        WS["WebSocket 事件流"]
+        Sentinel["市场哨兵 Mock 服务"]
+        Controller["自动播放控制器"]
     end
 
-    Client <-->|CoT Events / Actions| WS
+    Client <-->| "CoT Events / Actions" | WS
     WS <--> Controller
-    Controller -->|调用| Sentinel
-    Auth[Clerk Auth Service] --- Client
+    Controller -->| "调用" | Sentinel
+    Auth["Clerk Auth Service"] --- Client
     Auth --- MockServer
 ```
 
