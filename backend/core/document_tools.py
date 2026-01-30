@@ -6,7 +6,7 @@ import logging
 import json
 import re
 from datetime import datetime, date
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, ClassVar
 
 logger = logging.getLogger(__name__)
 
@@ -47,6 +47,30 @@ DOCUMENT_TYPES = {
     "minimum_safe_manning": ["Safe Manning", "Minimum Safe Manning", "MSM"],
     "stcw_certificate": ["STCW", "Seafarer", "Competency Certificate"],
 }
+
+
+def classify_document_from_text(text: str) -> str:
+    """
+    Classify a maritime document type from text using keyword matching.
+
+    Args:
+        text: Text to analyze (OCR text, title, filename, etc.)
+
+    Returns:
+        The best-matching document type key from DOCUMENT_TYPES,
+        or "unknown" if no match is found.
+    """
+    if not text:
+        return "unknown"
+    text_upper = text.upper()
+    best_type = "unknown"
+    best_score = 0
+    for doc_type, keywords in DOCUMENT_TYPES.items():
+        score = sum(1 for kw in keywords if kw.upper() in text_upper)
+        if score > best_score:
+            best_score = score
+            best_type = doc_type
+    return best_type
 
 
 if HAS_CREWAI:
@@ -143,7 +167,7 @@ if HAS_CREWAI:
         """
 
         # Regex patterns for field extraction
-        PATTERNS = {
+        PATTERNS: ClassVar[Dict[str, List[str]]] = {
             "document_number": [
                 r"(?:Certificate|Doc(?:ument)?)\s*(?:No\.?|Number|#)\s*[:.]?\s*([A-Z0-9\-/]+)",
                 r"(?:No\.?|Number)\s*[:.]?\s*([A-Z0-9\-/]{5,})",
@@ -340,6 +364,140 @@ if HAS_CREWAI:
                 return json.dumps({"error": str(e)})
 
 
+    class SemanticDocumentMatchTool(BaseTool):
+        """Batch semantic search: check all missing documents in one call"""
+
+        name: str = "semantic_document_search"
+        description: str = """
+        Search the vessel's stored documents using semantic (embedding) similarity
+        to check whether each missing document actually exists on file.
+
+        THIS IS A BATCH TOOL — pass ALL missing documents at once.
+
+        Input:
+        - missing_documents_json: A JSON array of document type strings to check,
+            e.g. '["Safety Management Certificate", "Load Line Certificate"]'
+        - vessel_id: The vessel ID to scope the search (integer).
+            Use 0 if no vessel_id is available.
+        - customer_id: The customer ID to scope the search (integer).
+            Use 0 if no customer_id is available.
+            At least one of vessel_id or customer_id must be non-zero.
+
+        Returns a JSON object with results for each document:
+        {
+          "results": [
+            {
+              "document_type": "Safety Management Certificate",
+              "matched": true,
+              "matched_title": "ISM_SMC_Certificate.pdf",
+              "expiry_date": "2026-05-15"
+            },
+            ...
+          ],
+          "matched_count": 3,
+          "still_missing_count": 5
+        }
+        """
+
+        def _run(
+            self,
+            missing_documents_json: str,
+            vessel_id: int = 0,
+            customer_id: int = 0,
+        ) -> str:
+            """Batch check missing documents by semantic similarity"""
+            try:
+                missing_types = json.loads(missing_documents_json)
+                if isinstance(missing_types, dict):
+                    missing_types = missing_types.get("missing_documents", [])
+                if isinstance(missing_types, list) and missing_types and isinstance(missing_types[0], dict):
+                    missing_types = [d.get("document_type", "") for d in missing_types]
+                missing_types = [t for t in missing_types if t]
+
+                if not missing_types:
+                    return json.dumps({"results": [], "matched_count": 0, "still_missing_count": 0})
+
+                kb = get_maritime_knowledge_base()
+
+                # Build the ChromaDB where filter
+                where_filter = None
+                vid = int(vessel_id)
+                cid = int(customer_id)
+                if vid and vid > 0:
+                    where_filter = {"vessel_id": vid}
+                elif cid and cid > 0:
+                    where_filter = {"customer_id": cid}
+
+                results_out = []
+                matched_count = 0
+
+                for doc_type_name in missing_types:
+                    # Resolve canonical key for the required type
+                    required_key = doc_type_name
+                    if required_key not in DOCUMENT_TYPES:
+                        c = classify_document_from_text(required_key)
+                        if c != "unknown":
+                            required_key = c
+                        else:
+                            required_key = required_key.lower().replace(" ", "_").replace("'", "")
+
+                    search_results = kb.search_user_documents(
+                        query_text=doc_type_name,
+                        where_filter=where_filter,
+                        n_results=1,
+                    )
+
+                    if not search_results:
+                        results_out.append({
+                            "document_type": doc_type_name,
+                            "matched": False,
+                            "reason": "no_stored_documents",
+                        })
+                        continue
+
+                    best = search_results[0]
+                    score = best.get("score", float("inf"))
+
+                    # Resolve canonical key for the stored document
+                    stored_type = best.get("document_type", "")
+                    stored_title = best.get("title", "")
+                    if stored_type not in ("other", "unknown", ""):
+                        stored_key = stored_type
+                        if stored_key not in DOCUMENT_TYPES:
+                            c = classify_document_from_text(stored_key)
+                            stored_key = c if c != "unknown" else stored_key.lower().replace(" ", "_").replace("'", "")
+                    else:
+                        c = classify_document_from_text(stored_title)
+                        stored_key = c if c != "unknown" else "other"
+
+                    is_match = (stored_key == required_key) and score <= 0.6
+
+                    entry = {
+                        "document_type": doc_type_name,
+                        "matched": is_match,
+                        "matched_title": stored_title if is_match else None,
+                        "expiry_date": best.get("expiry_date") if is_match else None,
+                        "score": round(score, 4),
+                        "stored_key": stored_key,
+                        "required_key": required_key,
+                    }
+                    if not is_match:
+                        entry["reason"] = "type_mismatch" if score <= 0.6 else "low_similarity"
+                    results_out.append(entry)
+                    if is_match:
+                        matched_count += 1
+
+                return json.dumps({
+                    "results": results_out,
+                    "matched_count": matched_count,
+                    "still_missing_count": len(missing_types) - matched_count,
+                }, indent=2)
+
+            except Exception as e:
+                logger.error(f"SemanticDocumentMatchTool error: {e}")
+                return json.dumps({"error": str(e), "results": [], "matched_count": 0})
+
+
     class DocumentComparisonTool(BaseTool):
         """Tool for comparing user documents against requirements"""
 
@@ -371,6 +529,43 @@ if HAS_CREWAI:
                 user_docs = json.loads(user_documents_json)
                 required_types = json.loads(required_documents_json)
 
+                # Normalize required_types: the LLM may pass a dict wrapper or list of dicts
+                if isinstance(required_types, dict):
+                    required_types = required_types.get("required_documents", required_types.get("requirements", []))
+                if isinstance(required_types, list) and required_types and isinstance(required_types[0], dict):
+                    required_types = [item.get("document_type", "") for item in required_types if isinstance(item, dict)]
+                required_types = [t for t in required_types if t]
+
+                # Normalize required type names to canonical snake_case keys.
+                # The knowledge base returns human-readable names like
+                # "Ship's Registry Certificate" while user docs are classified
+                # to keys like "registry_certificate". Map both sides to the
+                # same namespace so comparisons work.
+                normalized_required = []
+                original_names = {}  # canonical_key -> original display name
+                for rt in required_types:
+                    # If already a canonical key, keep it
+                    if rt in DOCUMENT_TYPES:
+                        normalized_required.append(rt)
+                        original_names.setdefault(rt, rt)
+                    else:
+                        canonical = classify_document_from_text(rt)
+                        if canonical != "unknown":
+                            normalized_required.append(canonical)
+                            original_names.setdefault(canonical, rt)
+                        else:
+                            # Keep original string as-is for unrecognized types
+                            normalized_required.append(rt)
+                            original_names.setdefault(rt, rt)
+                # Deduplicate while preserving order
+                seen = set()
+                deduped = []
+                for rt in normalized_required:
+                    if rt not in seen:
+                        seen.add(rt)
+                        deduped.append(rt)
+                required_types = deduped
+
                 today = date.today()
 
                 # Categorize user documents
@@ -381,7 +576,22 @@ if HAS_CREWAI:
                 user_doc_types = set()
 
                 for doc in user_docs:
-                    doc_type = doc.get("document_type", "")
+                    raw_type = doc.get("document_type", "")
+                    title = doc.get("title", "")
+
+                    # Resolve actual type: normalize to canonical key
+                    if raw_type and raw_type in DOCUMENT_TYPES:
+                        # Already a canonical key
+                        doc_type = raw_type
+                    elif raw_type and raw_type not in ("other", "unknown", ""):
+                        # Human-readable name — try to map to canonical key
+                        canonical = classify_document_from_text(raw_type)
+                        doc_type = canonical if canonical != "unknown" else raw_type
+                    else:
+                        # "other"/"unknown"/empty — infer from title
+                        inferred = classify_document_from_text(title)
+                        doc_type = inferred if inferred != "unknown" else (raw_type or "other")
+
                     user_doc_types.add(doc_type)
 
                     expiry_str = doc.get("expiry_date")
@@ -392,6 +602,7 @@ if HAS_CREWAI:
 
                             doc_info = {
                                 "document_type": doc_type,
+                                "title": title,
                                 "expiry_date": expiry_str,
                                 "days_until_expiry": days_until
                             }
@@ -409,6 +620,7 @@ if HAS_CREWAI:
                             # Date parsing failed, assume valid
                             valid_docs.append({
                                 "document_type": doc_type,
+                                "title": title,
                                 "status": "valid",
                                 "note": "Could not parse expiry date"
                             })
@@ -416,6 +628,7 @@ if HAS_CREWAI:
                         # No expiry date, assume valid
                         valid_docs.append({
                             "document_type": doc_type,
+                            "title": title,
                             "status": "valid",
                             "note": "No expiry date"
                         })
@@ -500,4 +713,5 @@ def get_document_tools() -> List[Any]:
         MetadataExtractorTool(),
         RequirementsLookupTool(),
         DocumentComparisonTool(),
+        SemanticDocumentMatchTool(),
     ]

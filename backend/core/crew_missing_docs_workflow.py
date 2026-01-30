@@ -1,7 +1,13 @@
 """
 CrewAI Workflow for Missing Document Detection
-Dedicated 2-agent system that compares a vessel's existing documents against
+Dedicated 3-agent system that compares a vessel's existing documents against
 route requirements to identify gaps, expired docs, and compliance issues.
+
+Agents:
+  1. Route Requirements Analyst — determines all required documents for the route.
+  2. Document Gap Detector — compares structured records against requirements.
+  3. Semantic Document Verifier — uses RAG embedding search over stored
+     documents to catch matches that keyword/type comparison missed.
 
 Unlike crew_document_agents.py which analyzes raw uploaded document content (OCR text),
 this workflow operates on already-processed structured UserDocument records
@@ -50,20 +56,34 @@ Keep outputs focused and actionable for ship operators.
 
 
 def _init_llm():
-    """Initialize LLM for CrewAI - uses Google Gemini by default"""
+    """Initialize LLM for CrewAI - uses Google Gemini by default, falls back to OpenAI"""
     if not HAS_CREWAI:
         raise RuntimeError("CrewAI not installed")
 
     # Try Google Gemini first (preferred)
     if settings.google_api_key:
         os.environ.setdefault("GOOGLE_API_KEY", settings.google_api_key)
-        _test_gemini_connection(api_key=settings.google_api_key)
-        return LLM(
-            model="gemini/gemini-2.0-flash",
-            api_key=settings.google_api_key
-        )
+        try:
+            _test_gemini_connection(api_key=settings.google_api_key)
+            return LLM(
+                model="gemini/gemini-2.0-flash",
+                api_key=settings.google_api_key
+            )
+        except RuntimeError as e:
+            # Gemini quota exceeded or connection failed - try OpenAI fallback
+            logger.warning(f"Gemini unavailable: {e}. Trying OpenAI fallback...")
+            if settings.openai_api_key:
+                os.environ.setdefault("OPENAI_API_KEY", settings.openai_api_key)
+                if settings.openai_base_url:
+                    os.environ.setdefault("OPENAI_BASE_URL", settings.openai_base_url)
+                model_name = settings.openai_model or "gpt-4o-mini"
+                logger.info(f"Using OpenAI fallback: {model_name}")
+                return LLM(model=model_name)
+            else:
+                # Re-raise if no OpenAI fallback available
+                raise
 
-    # Fall back to OpenAI if configured
+    # Fall back to OpenAI if configured (when no Gemini key at all)
     if settings.openai_api_key:
         os.environ.setdefault("OPENAI_API_KEY", settings.openai_api_key)
         if settings.openai_base_url:
@@ -137,6 +157,21 @@ def build_missing_docs_crew(
         verbose=True,
     )
 
+    semantic_verifier = Agent(
+        role="Semantic Document Verifier",
+        goal="Use semantic search to verify whether documents reported as missing actually exist in storage",
+        backstory=common_backstory + "\nYou are a verification specialist. "
+                  "The gap detector may report documents as missing when the vessel "
+                  "actually has them on file under a different name or type. "
+                  "You use the semantic_document_search tool to query the vessel's "
+                  "stored documents by meaning (embeddings) and confirm whether each "
+                  "'missing' document truly has no match in the document store. "
+                  "You output a corrected final report.",
+        llm=llm,
+        tools=tools,
+        verbose=True,
+    )
+
     # ========== TASKS ==========
 
     tasks: List[Task] = []
@@ -156,11 +191,16 @@ Use the requirements_lookup tool to find all required documents based on:
 2. Flag state: {vessel_info.get('flag_state', 'Unknown')}
 3. Destination ports: {route_ports}
 
-Include:
+Include ONLY:
 1. Mandatory IMO convention certificates (SOLAS, MARPOL, ISM, ISPS, Load Line, Tonnage, Registry)
-2. Port-specific requirements for each destination port
-3. Regional requirements (EU MRV if applicable, ECA compliance)
+2. Port-specific requirements for ONLY the actual destination ports listed above
+3. Regional requirements ONLY if ports are in that region:
+   - US documents (CBP, ISF, CARB, USCG) ONLY if route includes US ports (ports starting with "US")
+   - EU MRV ONLY if route includes EU ports
 4. Flag state specific requirements
+
+IMPORTANT: Do NOT include US-specific documents (CBP, ISF, CARB, USCG, C-TPAT) unless the route includes US ports.
+Do NOT include EU-specific documents (EU MRV, EU ETS) unless the route includes EU ports.
 
 Output as JSON:
 {{
@@ -261,9 +301,56 @@ Limit: 600 words.
         expected_output="JSON gap analysis report with missing documents and recommendations"
     ))
 
+    # Task 3: Semantic verification of "missing" documents
+    vessel_id = vessel_info.get("vessel_id") or vessel_info.get("id") or 0
+    customer_id = vessel_info.get("customer_id") or 0
+    tasks.append(Task(
+        description=f"""
+Review the gap analysis from the previous task. Collect ALL document types
+listed as "missing" into a JSON array of strings and call
+semantic_document_search ONCE with:
+
+- missing_documents_json: a JSON array of document type strings,
+  e.g. '["Safety Management Certificate", "Load Line Certificate"]'
+- vessel_id: {vessel_id}
+- customer_id: {customer_id}
+
+The tool will return a batch result with "matched": true/false for each.
+
+For every document where "matched" is true:
+- Move it from "missing_documents" to "valid_documents"
+  (or "expiring_soon"/"expired" if its expiry_date warrants it).
+  Use the "matched_title" and "expiry_date" from the tool result.
+For every document where "matched" is false:
+- Keep it in "missing_documents".
+
+After processing, output the CORRECTED final report as JSON:
+
+{{
+  "overall_status": "COMPLIANT|PARTIAL|NON_COMPLIANT",
+  "compliance_score": 0-100,
+  "summary": "1-2 sentence summary",
+  "valid_documents": [...],
+  "expiring_soon": [...],
+  "expired_documents": [...],
+  "missing_documents": [...],
+  "recommendations": [...]
+}}
+
+IMPORTANT:
+- Call semantic_document_search exactly ONCE with ALL missing docs.
+- Only move documents whose tool result says "matched": true.
+- Recalculate compliance_score and overall_status after corrections.
+
+Limit: 600 words.
+""",
+        agent=semantic_verifier,
+        expected_output="Corrected JSON gap analysis after semantic verification"
+    ))
+
     # Create Crew
     crew = Crew(
-        agents=[route_requirements_analyst, gap_detector],
+        agents=[route_requirements_analyst, gap_detector, semantic_verifier],
         tasks=tasks,
         verbose=True
     )

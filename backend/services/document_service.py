@@ -16,6 +16,7 @@ from fastapi import UploadFile
 from config import get_settings
 from services.ocr_service import get_ocr_service, OCRResult
 from services.maritime_knowledge_base import get_maritime_knowledge_base
+from core.document_tools import classify_document_from_text
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
@@ -192,6 +193,40 @@ class DocumentService:
         if not issuing_authority and "issuing_authority" in extracted_fields:
             issuing_authority = extracted_fields["issuing_authority"]
 
+        # Auto-classify document type if user provided "other" or empty.
+        # Strategy: keyword matching first, then semantic (RAG) fallback.
+        if document_type in ("other", "unknown", ""):
+            # 1. Keyword matching on OCR text
+            if ocr_result.text:
+                inferred = classify_document_from_text(ocr_result.text)
+                if inferred != "unknown":
+                    document_type = inferred
+                    logger.info(f"Auto-classified document as '{document_type}' from OCR text (keyword)")
+            # 2. Keyword matching on title
+            if document_type in ("other", "unknown", ""):
+                inferred = classify_document_from_text(title)
+                if inferred != "unknown":
+                    document_type = inferred
+                    logger.info(f"Auto-classified document as '{document_type}' from title (keyword)")
+            # 3. Semantic search: find similar already-classified documents
+            if document_type in ("other", "unknown", "") and ocr_result.text:
+                try:
+                    similar = self.kb.search_user_documents(
+                        query_text=ocr_result.text[:500],
+                        n_results=3,
+                    )
+                    for s in similar:
+                        s_type = s.get("document_type", "other")
+                        if s_type not in ("other", "unknown", ""):
+                            document_type = s_type
+                            logger.info(
+                                f"Auto-classified document as '{document_type}' "
+                                f"via semantic match (score={s.get('score', '?')})"
+                            )
+                            break
+                except Exception as e:
+                    logger.warning(f"Semantic auto-classify failed: {e}")
+
         # Build metadata
         metadata = self._build_metadata(
             customer_id=customer_id,
@@ -238,7 +273,7 @@ class DocumentService:
         where: Dict[str, Any] = {"vessel_id": vessel_id}
         if document_type:
             where["document_type"] = document_type
-        raw_docs = self.kb.get_user_documents(where, limit=500)
+        raw_docs = self.kb.get_user_documents(where, limit=200)
         docs = [self._to_doc_dict(d) for d in raw_docs]
         # Sort by created_at descending (ChromaDB has no ORDER BY)
         docs.sort(key=lambda d: d.get("created_at", ""), reverse=True)
@@ -253,7 +288,7 @@ class DocumentService:
         where: Dict[str, Any] = {"customer_id": customer_id}
         if document_type:
             where["document_type"] = document_type
-        raw_docs = self.kb.get_user_documents(where, limit=500)
+        raw_docs = self.kb.get_user_documents(where, limit=200)
         docs = [self._to_doc_dict(d) for d in raw_docs]
         docs.sort(key=lambda d: d.get("created_at", ""), reverse=True)
         return docs

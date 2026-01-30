@@ -917,6 +917,67 @@ class MaritimeKnowledgeBase:
             logger.error(f"Error searching user documents: {e}")
             return []
 
+    def match_required_document(
+        self,
+        required_doc_type: str,
+        where_filter: Optional[Dict[str, Any]] = None,
+        score_threshold: float = 0.6,
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Use semantic similarity to find a user document that matches a
+        required document type.
+
+        Args:
+            required_doc_type: The required document name,
+                e.g. "Safety Management Certificate" or "registry_certificate".
+            where_filter: ChromaDB where clause to scope the search,
+                e.g. {"vessel_id": 5} or {"customer_id": 3}.
+            score_threshold: Maximum distance score to consider a match.
+                Lower = stricter. ChromaDB returns L2 distances where
+                0 = identical. A value of ~0.6 works well for Gemini
+                embeddings with short document type names.
+
+        Returns:
+            The best-matching user document dict (with 'id', 'text',
+            metadata, 'score') if the score is within threshold,
+            otherwise None.
+        """
+        results = self.search_user_documents(
+            query_text=required_doc_type,
+            where_filter=where_filter,
+            n_results=1,
+        )
+        if results and results[0].get("score", float("inf")) <= score_threshold:
+            return results[0]
+        return None
+
+    def match_documents_against_requirements(
+        self,
+        required_doc_types: List[str],
+        where_filter: Optional[Dict[str, Any]] = None,
+        score_threshold: float = 0.6,
+    ) -> Dict[str, Optional[Dict[str, Any]]]:
+        """
+        For each required document type, find the best-matching user
+        document via semantic similarity.
+
+        Args:
+            required_doc_types: List of required document type names.
+            where_filter: ChromaDB where clause to scope search.
+            score_threshold: Maximum distance to consider a match.
+
+        Returns:
+            Dict mapping each required type to its best match (or None).
+        """
+        matches: Dict[str, Optional[Dict[str, Any]]] = {}
+        for req_type in required_doc_types:
+            matches[req_type] = self.match_required_document(
+                required_doc_type=req_type,
+                where_filter=where_filter,
+                score_threshold=score_threshold,
+            )
+        return matches
+
 
 # Singleton instance
 _maritime_kb: Optional[MaritimeKnowledgeBase] = None

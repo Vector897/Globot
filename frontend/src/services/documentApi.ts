@@ -37,15 +37,30 @@ export interface DocumentInfo {
 
 export interface DocumentSummary {
   document_type: string;
+  title?: string | null;
   expiry_date: string | null;
   status: 'valid' | 'expired' | 'expiring_soon';
   days_until_expiry: number | null;
+  category: 'vessel' | 'cargo';
 }
 
 export interface MissingDocument {
   document_type: string;
   required_by: string[];
   priority: 'CRITICAL' | 'HIGH' | 'MEDIUM';
+  category: 'vessel' | 'cargo';
+}
+
+export interface Port {
+  id: number;
+  name: string;
+  un_locode: string;
+  country: string;
+  region: string;
+  latitude?: number;
+  longitude?: number;
+  psc_regime?: string;
+  is_eca?: boolean;
 }
 
 export interface Recommendation {
@@ -115,8 +130,10 @@ export interface CreateRouteParams {
 }
 
 export interface DetectMissingParams {
-  vessel_id: number;
+  vessel_id?: number;
   route_id?: number;
+  port_codes?: string[];
+  customer_id?: number;
 }
 
 export interface MissingDocsResponse {
@@ -132,10 +149,16 @@ export interface MissingDocsResponse {
   };
   route_ports: string[];
   route_name: string;
+  // All documents
   missing_documents: MissingDocument[];
   expired_documents: DocumentSummary[];
   expiring_soon_documents: DocumentSummary[];
   valid_documents: DocumentSummary[];
+  // Categorized documents (vessel = ship owner/operator, cargo = cargo-related)
+  vessel_missing_documents: MissingDocument[];
+  cargo_missing_documents: MissingDocument[];
+  vessel_valid_documents: DocumentSummary[];
+  cargo_valid_documents: DocumentSummary[];
   recommendations: Recommendation[];
   agent_reasoning: string | null;
   total_documents_on_file: number;
@@ -206,6 +229,13 @@ export const documentAPI = {
     return response.data;
   },
 
+  // Get all documents for a customer (user)
+  getCustomerDocuments: async (customerId: number, documentType?: string): Promise<DocumentInfo[]> => {
+    const params = documentType ? { document_type: documentType } : {};
+    const response = await api.get(`/v2/maritime/documents/customer/${customerId}`, { params });
+    return response.data;
+  },
+
   // Get single document with full details
   getDocument: async (documentId: string): Promise<DocumentInfo & { extracted_text: string; extracted_fields: Record<string, any> }> => {
     const response = await api.get(`/v2/maritime/documents/${documentId}`);
@@ -227,6 +257,15 @@ export const documentAPI = {
   // Get vessel details
   getVessel: async (vesselId: number): Promise<Vessel> => {
     const response = await api.get(`/v2/maritime/vessels/${vesselId}`);
+    return response.data;
+  },
+
+  // Get all available ports
+  getPorts: async (region?: string, limit?: number): Promise<Port[]> => {
+    const params: Record<string, any> = {};
+    if (region) params.region = region;
+    if (limit) params.limit = limit;
+    const response = await api.get('/v2/maritime/ports', { params });
     return response.data;
   },
 

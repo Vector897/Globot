@@ -151,9 +151,11 @@ class DocumentAnalysisRequest(BaseModel):
 class DocumentSummary(BaseModel):
     """Summary of a document"""
     document_type: str
+    title: Optional[str] = None
     expiry_date: Optional[str] = None
     status: str  # valid, expired, expiring_soon
     days_until_expiry: Optional[int] = None
+    category: str = "vessel"  # vessel or cargo
 
 
 class MissingDocument(BaseModel):
@@ -161,6 +163,66 @@ class MissingDocument(BaseModel):
     document_type: str
     required_by: List[str]  # Regulations or ports requiring it
     priority: str  # CRITICAL, HIGH, MEDIUM
+    category: str = "vessel"  # vessel or cargo
+
+
+# Document categorization - vessel (ship owner/operator) vs cargo documents
+VESSEL_DOCUMENTS = {
+    "safety_management_certificate", "smc", "ism", "ism_code",
+    "safety_construction_certificate", "solas",
+    "safety_equipment_certificate",
+    "safety_radio_certificate",
+    "load_line_certificate", "international_load_line",
+    "tonnage_certificate", "international_tonnage", "itc",
+    "iopp_certificate", "oil_pollution_prevention", "marpol_annex_i",
+    "ispp_certificate", "sewage_pollution_prevention", "marpol_annex_iv",
+    "iapp_certificate", "air_pollution_prevention", "marpol_annex_vi",
+    "civil_liability_certificate", "clc", "bunker_convention",
+    "isps_certificate", "international_ship_security",
+    "mlc_certificate", "maritime_labour_convention", "dmlc",
+    "continuous_synopsis_record", "csr",
+    "registry_certificate", "certificate_of_registry",
+    "minimum_safe_manning", "safe_manning", "msm",
+    "stcw_certificate", "seafarer_certificate",
+    "class_certificate", "classification_certificate",
+    "insurance_certificate", "p_and_i", "hull_insurance",
+}
+
+CARGO_DOCUMENTS = {
+    "bill_of_lading", "bol", "b_l",
+    "cargo_manifest", "manifest",
+    "dangerous_goods_declaration", "dg_declaration", "imdg",
+    "commercial_invoice", "invoice",
+    "packing_list",
+    "certificate_of_origin", "coo",
+    "customs_declaration", "customs_entry",
+    "isf", "importer_security_filing",
+    "cbp", "us_customs",
+    "ata_carnet", "carnet",
+    "phytosanitary_certificate",
+    "fumigation_certificate",
+    "health_certificate",
+    "weight_certificate",
+    "inspection_certificate",
+}
+
+
+def categorize_document(doc_type: str) -> str:
+    """Categorize a document as 'vessel' or 'cargo' based on its type."""
+    doc_type_lower = doc_type.lower().replace(" ", "_").replace("-", "_")
+    
+    # Check against cargo documents first (smaller set)
+    for cargo_doc in CARGO_DOCUMENTS:
+        if cargo_doc in doc_type_lower or doc_type_lower in cargo_doc:
+            return "cargo"
+    
+    # Check against vessel documents
+    for vessel_doc in VESSEL_DOCUMENTS:
+        if vessel_doc in doc_type_lower or doc_type_lower in vessel_doc:
+            return "vessel"
+    
+    # Default to vessel for unknown document types (most maritime docs are vessel-related)
+    return "vessel"
 
 
 class Recommendation(BaseModel):
@@ -215,8 +277,10 @@ class VesselRouteResponse(BaseModel):
 
 class MissingDocsRequest(BaseModel):
     """Request model for missing documents detection"""
-    vessel_id: int
+    vessel_id: Optional[int] = Field(None, description="Vessel ID. Optional if port_codes and customer_id are provided.")
     route_id: Optional[int] = Field(None, description="Specific route ID. If omitted, uses active route.")
+    port_codes: Optional[List[str]] = Field(None, description="Port codes for the route. Use instead of route_id for vesselless analysis.")
+    customer_id: Optional[int] = Field(None, description="Customer ID to fetch documents. Required if vessel_id not provided.")
 
 
 class MissingDocsResponse(BaseModel):
@@ -227,10 +291,16 @@ class MissingDocsResponse(BaseModel):
     vessel_info: dict
     route_ports: List[str]
     route_name: str
+    # All documents (for backwards compatibility)
     missing_documents: List[MissingDocument]
     expired_documents: List[DocumentSummary]
     expiring_soon_documents: List[DocumentSummary]
     valid_documents: List[DocumentSummary]
+    # Categorized documents (vessel = ship owner/operator, cargo = cargo-related)
+    vessel_missing_documents: List[MissingDocument] = []
+    cargo_missing_documents: List[MissingDocument] = []
+    vessel_valid_documents: List[DocumentSummary] = []
+    cargo_valid_documents: List[DocumentSummary] = []
     recommendations: List[Recommendation]
     agent_reasoning: Optional[str] = None
     total_documents_on_file: int
@@ -678,6 +748,34 @@ async def get_vessel_documents(
     ]
 
 
+@router.get("/documents/customer/{customer_id}", response_model=List[DocumentResponse])
+async def get_customer_documents(
+    customer_id: int,
+    document_type: Optional[str] = None,
+):
+    """Get all documents for a customer (user)"""
+    doc_service = DocumentService()
+    documents = doc_service.get_customer_documents(customer_id, document_type)
+
+    return [
+        DocumentResponse(
+            id=d["id"],
+            title=d["title"],
+            document_type=d["document_type"],
+            file_name=d.get("file_name"),
+            file_size=d.get("file_size"),
+            ocr_confidence=d.get("ocr_confidence"),
+            issuing_authority=d.get("issuing_authority"),
+            issue_date=d.get("issue_date"),
+            expiry_date=d.get("expiry_date"),
+            document_number=d.get("document_number"),
+            is_validated=d.get("is_validated", False),
+            created_at=d.get("created_at", ""),
+        )
+        for d in documents
+    ]
+
+
 @router.get("/documents/{document_id}")
 async def get_document(document_id: str):
     """Get document details including extracted text"""
@@ -902,56 +1000,100 @@ async def detect_missing_documents(
     db: Session = Depends(get_db)
 ):
     """
-    Detect missing documents for a vessel's route using a dedicated agentic workflow.
+    Detect missing documents for a route using a dedicated agentic workflow.
 
     This is SEPARATE from /documents/analyze:
     - /documents/analyze: Analyzes raw uploaded document content (OCR text) with 3-agent crew
     - /documents/detect-missing: Checks ALL existing DB records against route requirements with 2-agent crew
 
+    Supports two modes:
+    1. Vessel-based: Provide vessel_id (and optionally route_id) to use vessel routes and documents
+    2. Vesselless: Provide port_codes and customer_id to analyze customer documents against a custom route
+
     Steps:
-    1. Load vessel info
-    2. Load active route (or specified route_id)
-    3. Load all UserDocuments for the vessel (structured data, not raw OCR)
+    1. Load vessel info (or use defaults for vesselless mode)
+    2. Load route ports (from route_id, active route, or port_codes)
+    3. Load documents (from vessel or customer)
     4. Run the missing docs agentic workflow
     5. Return structured gap analysis
     """
-    # Validate vessel exists
-    vessel = db.query(Vessel).filter(Vessel.id == request.vessel_id).first()
-    if not vessel:
-        raise HTTPException(status_code=404, detail="Vessel not found")
+    doc_service = DocumentService()
+    port_codes = []
+    route_name = "Custom Route"
+    vessel_info = {}
+    documents = []
 
-    # Get route
-    if request.route_id:
-        route = db.query(VesselRoute).filter(
-            VesselRoute.id == request.route_id,
-            VesselRoute.vessel_id == request.vessel_id
-        ).first()
+    # Mode 1: Vesselless analysis with port_codes and customer_id
+    if request.port_codes and request.customer_id:
+        port_codes = [p.strip().upper() for p in request.port_codes if p.strip()]
+        route_name = f"Route: {' → '.join(port_codes[:3])}{'...' if len(port_codes) > 3 else ''}"
+        
+        # Use default vessel info for vesselless analysis
+        vessel_info = {
+            "vessel_id": 0,
+            "customer_id": request.customer_id,
+            "name": "User Vessel",
+            "imo_number": "N/A",
+            "vessel_type": "container",
+            "flag_state": "Unknown",
+            "gross_tonnage": 0,
+        }
+        
+        # Get customer documents
+        documents = doc_service.get_customer_documents(request.customer_id)
+    
+    # Mode 2: Vessel-based analysis
+    elif request.vessel_id:
+        # Validate vessel exists
+        vessel = db.query(Vessel).filter(Vessel.id == request.vessel_id).first()
+        if not vessel:
+            raise HTTPException(status_code=404, detail="Vessel not found")
+
+        # Get route
+        if request.route_id:
+            route = db.query(VesselRoute).filter(
+                VesselRoute.id == request.route_id,
+                VesselRoute.vessel_id == request.vessel_id
+            ).first()
+        else:
+            route = db.query(VesselRoute).filter(
+                VesselRoute.vessel_id == request.vessel_id,
+                VesselRoute.is_active == True
+            ).first()
+
+        if not route:
+            raise HTTPException(
+                status_code=404,
+                detail="No active route found for this vessel. Please create a route first."
+            )
+
+        port_codes = json.loads(route.port_codes) if route.port_codes else []
+        route_name = route.route_name or "Unnamed Route"
+
+        # Prepare vessel info
+        vessel_info = {
+            "vessel_id": vessel.id,
+            "name": vessel.name,
+            "imo_number": vessel.imo_number,
+            "vessel_type": vessel.vessel_type.value if vessel.vessel_type else "container",
+            "flag_state": vessel.flag_state,
+            "gross_tonnage": vessel.gross_tonnage,
+        }
+
+        # Get ALL vessel documents (structured data, NOT raw OCR text)
+        documents = doc_service.get_vessel_documents(request.vessel_id)
+    
     else:
-        route = db.query(VesselRoute).filter(
-            VesselRoute.vessel_id == request.vessel_id,
-            VesselRoute.is_active == True
-        ).first()
-
-    if not route:
         raise HTTPException(
-            status_code=404,
-            detail="No active route found for this vessel. Please create a route first."
+            status_code=400,
+            detail="Either vessel_id or (port_codes + customer_id) must be provided."
         )
 
-    port_codes = json.loads(route.port_codes) if route.port_codes else []
-
-    # Prepare vessel info
-    vessel_info = {
-        "name": vessel.name,
-        "imo_number": vessel.imo_number,
-        "vessel_type": vessel.vessel_type.value if vessel.vessel_type else "container",
-        "flag_state": vessel.flag_state,
-        "gross_tonnage": vessel.gross_tonnage,
-    }
-
-    # Get ALL vessel documents (structured data, NOT raw OCR text)
-    doc_service = DocumentService()
-    documents = doc_service.get_vessel_documents(request.vessel_id)
+    if not port_codes:
+        raise HTTPException(
+            status_code=400,
+            detail="No port codes provided. Please specify a route or provide port_codes."
+        )
 
     existing_docs = []
     for d in documents:
@@ -995,7 +1137,7 @@ async def detect_missing_documents(
             compliance_score=0,
             vessel_info=vessel_info,
             route_ports=port_codes,
-            route_name=route.route_name,
+            route_name=route_name,
             missing_documents=[],
             expired_documents=[],
             expiring_soon_documents=[],
@@ -1020,32 +1162,71 @@ async def detect_missing_documents(
     for doc in parsed.get("valid_documents", []):
         valid_docs.append(DocumentSummary(
             document_type=doc.get("document_type", "unknown"),
+            title=doc.get("title"),
             expiry_date=doc.get("expiry_date"),
             status="valid",
-            days_until_expiry=doc.get("days_until_expiry")
+            days_until_expiry=doc.get("days_until_expiry"),
+            category=categorize_document(doc.get("document_type", "unknown"))
         ))
 
     for doc in parsed.get("expiring_soon", parsed.get("expiring_soon_documents", [])):
         expiring_docs.append(DocumentSummary(
             document_type=doc.get("document_type", "unknown"),
+            title=doc.get("title"),
             expiry_date=doc.get("expiry_date"),
             status="expiring_soon",
-            days_until_expiry=doc.get("days_until_expiry")
+            days_until_expiry=doc.get("days_until_expiry"),
+            category=categorize_document(doc.get("document_type", "unknown"))
         ))
 
     for doc in parsed.get("expired_documents", []):
         expired_docs.append(DocumentSummary(
             document_type=doc.get("document_type", "unknown"),
+            title=doc.get("title"),
             expiry_date=doc.get("expiry_date"),
             status="expired",
-            days_until_expiry=doc.get("days_until_expiry")
+            days_until_expiry=doc.get("days_until_expiry"),
+            category=categorize_document(doc.get("document_type", "unknown"))
         ))
 
+    # NOTE: Semantic re-validation is now handled by the 3rd CrewAI agent
+    # (Semantic Document Verifier) inside the crew workflow. The agent uses
+    # the semantic_document_search tool to verify each "missing" document
+    # against stored documents before producing the final output.
+
+    # Filter out region-specific documents that don't apply to the route
+    US_SPECIFIC_DOCS = {
+        "cbp", "isf", "carb", "uscg", "us_cbp", "us_customs", "importer_security_filing",
+        "california_air_resources", "us_coast_guard", "c-tpat", "ace_manifest"
+    }
+    EU_SPECIFIC_DOCS = {"eu_mrv", "mrv", "eu_ets"}
+    
+    # Check if route includes US or EU ports
+    us_port_prefixes = ("US",)
+    eu_port_prefixes = ("NL", "DE", "BE", "FR", "ES", "IT", "PT", "GR", "PL", "SE", "DK", "FI", "IE", "AT", "EE", "LV", "LT", "MT", "CY", "SI", "HR", "BG", "RO", "SK", "CZ", "HU", "LU")
+    
+    has_us_ports = any(p.upper().startswith(us_port_prefixes) for p in port_codes)
+    has_eu_ports = any(p.upper().startswith(eu_port_prefixes) for p in port_codes)
+
     for doc in parsed.get("missing_documents", []):
+        doc_type = doc.get("document_type", "unknown").lower().replace(" ", "_").replace("-", "_")
+        
+        # Skip US-specific docs if no US ports in route
+        if not has_us_ports and any(us_doc in doc_type for us_doc in US_SPECIFIC_DOCS):
+            logger.debug(f"Filtering out US-specific doc {doc_type} - no US ports in route")
+            continue
+        
+        # Skip EU-specific docs if no EU ports in route
+        if not has_eu_ports and any(eu_doc in doc_type for eu_doc in EU_SPECIFIC_DOCS):
+            logger.debug(f"Filtering out EU-specific doc {doc_type} - no EU ports in route")
+            continue
+        
+        doc_category = categorize_document(doc.get("document_type", "unknown"))
         missing_docs.append(MissingDocument(
             document_type=doc.get("document_type", "unknown"),
             required_by=doc.get("required_by", doc.get("ports_affected", ["Unknown"])),
-            priority=doc.get("priority", "HIGH")
+            priority=doc.get("priority", "HIGH"),
+            category=doc_category
         ))
 
     for rec in parsed.get("recommendations", []):
@@ -1056,17 +1237,41 @@ async def detect_missing_documents(
             deadline=rec.get("deadline")
         ))
 
+    # Recalculate compliance score after region filtering
+    total_docs = len(valid_docs) + len(expiring_docs) + len(expired_docs) + len(missing_docs)
+    if total_docs > 0:
+        compliance_score = int(
+            ((len(valid_docs) * 100) + (len(expiring_docs) * 80))
+            / total_docs
+        )
+    if missing_docs or expired_docs:
+        overall_status = "NON_COMPLIANT" if len(missing_docs) > 5 else "PARTIAL"
+    elif expiring_docs:
+        overall_status = "PARTIAL"
+    elif valid_docs:
+        overall_status = "COMPLIANT"
+
+    # Categorize all documents into vessel (ship owner/operator) vs cargo
+    vessel_missing = [d for d in missing_docs if d.category == "vessel"]
+    cargo_missing = [d for d in missing_docs if d.category == "cargo"]
+    vessel_valid = [d for d in valid_docs if d.category == "vessel"]
+    cargo_valid = [d for d in valid_docs if d.category == "cargo"]
+
     return MissingDocsResponse(
         success=True,
         overall_status=overall_status,
         compliance_score=int(compliance_score),
         vessel_info=vessel_info,
         route_ports=port_codes,
-        route_name=route.route_name,
+        route_name=route_name,
         missing_documents=missing_docs,
         expired_documents=expired_docs,
         expiring_soon_documents=expiring_docs,
         valid_documents=valid_docs,
+        vessel_missing_documents=vessel_missing,
+        cargo_missing_documents=cargo_missing,
+        vessel_valid_documents=vessel_valid,
+        cargo_valid_documents=cargo_valid,
         recommendations=recommendations,
         agent_reasoning=result.get("crew_output"),
         total_documents_on_file=len(documents),

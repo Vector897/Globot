@@ -2,13 +2,10 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useUser, SignOutButton } from '@clerk/clerk-react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Home,
   Zap,
   Clock,
   Shield,
   ArrowLeft,
-  Database,
-  CreditCard,
   History,
   TrendingUp,
   Activity,
@@ -18,17 +15,21 @@ import {
   CheckCircle2,
   AlertCircle,
   Plus,
-  Trash2,
   ChevronRight,
   ClipboardCheck,
   Package,
   MapPin,
-  Calendar,
   Layers,
   Info,
-  X
+  X,
+  Anchor,
+  Navigation,
+  Search,
+  RefreshCw
 } from 'lucide-react';
 import { documentAPI } from '../services/documentApi';
+import { GapAnalysisReport } from '../components/documents';
+import { MAJOR_PORTS } from '../data/ports';
 import { motion, AnimatePresence } from 'motion/react';
 
 export function UsersHome() {
@@ -36,7 +37,7 @@ export function UsersHome() {
   const navigate = useNavigate();
   
   // --- States ---
-  const [activeTab, setActiveTab] = useState('overview'); // 'overview' or 'vessel'
+  const [activeTab, setActiveTab] = useState('overview'); // 'overview', 'vessel', or 'compliance'
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [isParsing, setIsParsing] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -47,6 +48,22 @@ export function UsersHome() {
   // Customer/vessel identity from backend
   const [customerId, setCustomerId] = useState(null);
   const [vesselId, setVesselId] = useState(null);
+
+  // Compliance Analysis State
+  const [vesselRoutes, setVesselRoutes] = useState([]);
+  const [selectedRoute, setSelectedRoute] = useState(null);
+  const [vesselDocuments, setVesselDocuments] = useState([]);
+  const [missingDocsResult, setMissingDocsResult] = useState(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analysisError, setAnalysisError] = useState(null);
+  const [newRouteName, setNewRouteName] = useState('');
+  const [isCreatingRoute, setIsCreatingRoute] = useState(false);
+  
+  // Port selection state
+  // availablePorts is now computed via useMemo (allPorts)
+  const [selectedRoutePorts, setSelectedRoutePorts] = useState([]); // Array of port objects for new route
+  const [portSearchQuery, setPortSearchQuery] = useState('');
+  const [showPortDropdown, setShowPortDropdown] = useState(false);
 
   // Provision customer + vessel on mount once Clerk user is loaded
   useEffect(() => {
@@ -69,6 +86,75 @@ export function UsersHome() {
     };
     provision();
   }, [user]);
+
+  // Pre-compute available ports from MAJOR_PORTS (no useEffect needed)
+  const countryCodeMap = {
+    'China': 'CN', 'Singapore': 'SG', 'Netherlands': 'NL', 'Germany': 'DE',
+    'USA': 'US', 'UK': 'GB', 'Belgium': 'BE', 'Spain': 'ES', 'France': 'FR',
+    'Italy': 'IT', 'Japan': 'JP', 'South Korea': 'KR', 'India': 'IN',
+    'UAE': 'AE', 'Saudi Arabia': 'SA', 'Malaysia': 'MY', 'Thailand': 'TH',
+    'Vietnam': 'VN', 'Indonesia': 'ID', 'Philippines': 'PH', 'Taiwan': 'TW',
+    'Australia': 'AU', 'New Zealand': 'NZ', 'Brazil': 'BR', 'Mexico': 'MX',
+    'Canada': 'CA', 'Argentina': 'AR', 'Chile': 'CL', 'Colombia': 'CO',
+    'Peru': 'PE', 'Panama': 'PA', 'Egypt': 'EG', 'Turkey': 'TR',
+    'South Africa': 'ZA', 'Kenya': 'KE', 'Morocco': 'MA', 'Nigeria': 'NG',
+    'Ghana': 'GH', 'Ivory Coast': 'CI', 'Senegal': 'SN', 'Tanzania': 'TZ',
+    'Djibouti': 'DJ', 'Oman': 'OM', 'Kuwait': 'KW', 'Israel': 'IL',
+    'Greece': 'GR', 'Poland': 'PL', 'Sweden': 'SE', 'Denmark': 'DK',
+    'Finland': 'FI', 'Norway': 'NO', 'Estonia': 'EE', 'Latvia': 'LV',
+    'Russia': 'RU', 'Ukraine': 'UA', 'Romania': 'RO', 'Ireland': 'IE',
+    'Portugal': 'PT', 'Bangladesh': 'BD', 'Pakistan': 'PK', 'Sri Lanka': 'LK',
+    'Malta': 'MT', 'Jamaica': 'JM', 'Bahamas': 'BS', 'Puerto Rico': 'PR',
+    'Uruguay': 'UY', 'Ecuador': 'EC', 'Iran': 'IR', 'Mauritius': 'MU',
+  };
+
+  // Generate ports with UN/LOCODE codes from MAJOR_PORTS immediately
+  const allPorts = React.useMemo(() => {
+    return MAJOR_PORTS.map((port, idx) => {
+      const countryCode = countryCodeMap[port.country] || port.country.substring(0, 2).toUpperCase();
+      const portCode = port.name.replace(/\s+/g, '').substring(0, 3).toUpperCase();
+      return {
+        id: idx + 1,
+        name: port.name,
+        country: port.country,
+        region: port.region,
+        un_locode: `${countryCode}${portCode}`,
+        latitude: port.coordinates[1],
+        longitude: port.coordinates[0],
+      };
+    });
+  }, []);
+
+  // Load routes and documents when switching to compliance tab (requires vesselId)
+  useEffect(() => {
+    if (activeTab !== 'compliance' || !customerId) return;
+    
+    const loadComplianceData = async () => {
+      try {
+        // Fetch vessel routes (if vesselId is available)
+        if (vesselId) {
+          const routes = await documentAPI.getVesselRoutes(vesselId);
+          setVesselRoutes(routes);
+          
+          // Auto-select the active route if exists
+          const activeRoute = routes.find(r => r.is_active);
+          if (activeRoute) {
+            setSelectedRoute(activeRoute);
+          } else if (routes.length > 0) {
+            setSelectedRoute(routes[0]);
+          }
+        }
+
+        // Fetch customer documents (by user, not vessel)
+        const docs = await documentAPI.getCustomerDocuments(customerId);
+        setVesselDocuments(docs);
+      } catch (err) {
+        console.error('Failed to load compliance data:', err);
+      }
+    };
+    
+    loadComplianceData();
+  }, [activeTab, customerId, vesselId]);
 
   // User metrics data
   const [metrics, setMetrics] = useState({
@@ -198,6 +284,88 @@ export function UsersHome() {
     }
   };
 
+  // --- Compliance Analysis Handlers ---
+  const handleCreateRoute = async () => {
+    // Only save route if vesselId exists (guaranteed by UI)
+    if (!newRouteName.trim() || selectedRoutePorts.length === 0 || !vesselId) return;
+    
+    setIsCreatingRoute(true);
+    setAnalysisError(null);
+    try {
+      const portCodes = selectedRoutePorts.map(p => p.un_locode);
+      
+      const newRoute = await documentAPI.createRoute(vesselId, {
+        route_name: newRouteName,
+        port_codes: portCodes,
+        set_active: true
+      });
+      
+      setVesselRoutes(prev => [newRoute, ...prev]);
+      setSelectedRoute(newRoute);
+      setNewRouteName('');
+      // Keep ports selected so user can run analysis immediately
+    } catch (err) {
+      console.error('Failed to create route:', err);
+      setAnalysisError('Failed to create route. Please try again.');
+    } finally {
+      setIsCreatingRoute(false);
+    }
+  };
+
+  const handleRunAnalysis = async () => {
+    // Need either a selected route OR selected ports for route creation
+    const hasRoute = selectedRoute && selectedRoute.port_codes?.length > 0;
+    const hasPorts = selectedRoutePorts.length > 0;
+    
+    if (!customerId || (!hasRoute && !hasPorts)) {
+      setAnalysisError('Please select a route or add ports for analysis.');
+      return;
+    }
+    
+    setIsAnalyzing(true);
+    setAnalysisError(null);
+    setMissingDocsResult(null);
+    
+    try {
+      // Use port_codes and customer_id for vesselless analysis
+      const portCodes = hasRoute 
+        ? selectedRoute.port_codes 
+        : selectedRoutePorts.map(p => p.un_locode);
+      
+      const result = await documentAPI.detectMissingDocuments({
+        port_codes: portCodes,
+        customer_id: customerId
+      });
+      
+      setMissingDocsResult(result);
+    } catch (err) {
+      console.error('Analysis failed:', err);
+      setAnalysisError(err.response?.data?.detail || err.message || 'Analysis failed. Please try again.');
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
+  const refreshComplianceData = async () => {
+    if (!customerId) return;
+    try {
+      const promises = [documentAPI.getCustomerDocuments(customerId)];
+      if (vesselId) {
+        promises.unshift(documentAPI.getVesselRoutes(vesselId));
+      }
+      const results = await Promise.all(promises);
+      
+      if (vesselId) {
+        setVesselRoutes(results[0]);
+        setVesselDocuments(results[1]);
+      } else {
+        setVesselDocuments(results[0]);
+      }
+    } catch (err) {
+      console.error('Failed to refresh data:', err);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#0a0e1a] text-white font-sans selection:bg-blue-500/30 overflow-x-hidden">
       {/* Background Ambience */}
@@ -221,6 +389,7 @@ export function UsersHome() {
             <nav className="hidden md:flex items-center gap-2">
                <TabButton active={activeTab === 'overview'} onClick={() => setActiveTab('overview')} label="Intelligence Center" />
                <TabButton active={activeTab === 'vessel'} onClick={() => setActiveTab('vessel')} label="Vessel Profile" icon={<Ship className="w-4 h-4" />} />
+               <TabButton active={activeTab === 'compliance'} onClick={() => setActiveTab('compliance')} label="Compliance" icon={<Shield className="w-4 h-4" />} />
             </nav>
           </div>
           
@@ -241,7 +410,7 @@ export function UsersHome() {
         </div>
 
         <AnimatePresence mode="wait">
-          {activeTab === 'overview' ? (
+          {activeTab === 'overview' && (
             <motion.div 
               key="overview"
               initial={{ opacity: 0, scale: 0.98 }}
@@ -373,7 +542,9 @@ export function UsersHome() {
                  </div>
               </div>
             </motion.div>
-          ) : (
+          )}
+
+          {activeTab === 'vessel' && (
             <motion.div 
               key="vessel"
               initial={{ opacity: 0, x: 20 }}
@@ -461,6 +632,435 @@ export function UsersHome() {
                         </div>
                      </div>
                   </section>
+               </div>
+            </motion.div>
+          )}
+
+          {activeTab === 'compliance' && (
+            <motion.div 
+              key="compliance"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.3 }}
+            >
+               {/* Compliance Analysis Section */}
+               <div className="flex justify-between items-end mb-10">
+                  <div>
+                    <h1 className="text-4xl font-bold flex items-center gap-4">
+                      <div className="w-12 h-12 bg-emerald-500/10 rounded-2xl flex items-center justify-center">
+                        <Shield className="w-7 h-7 text-emerald-500" />
+                      </div>
+                      Compliance Analysis
+                    </h1>
+                    <p className="text-white/40 mt-2 ml-16">Detect missing documents and compliance gaps for your voyage routes</p>
+                  </div>
+                  <button 
+                    onClick={refreshComplianceData}
+                    className="flex items-center gap-2 text-white/60 hover:text-white px-4 py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl transition-all"
+                  >
+                    <RefreshCw className="w-4 h-4" />
+                    Refresh Data
+                  </button>
+               </div>
+
+               <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                  {/* Left Column - Route Selection & Documents */}
+                  <div className="lg:col-span-2 space-y-6">
+                     {/* Route Selection Panel */}
+                     <section className="bg-white/[0.02] border border-white/5 rounded-[2.5rem] p-8">
+                        <h3 className="text-lg font-bold mb-6 flex items-center gap-2">
+                           <Navigation className="w-5 h-5 text-blue-500" />
+                           Route Selection
+                        </h3>
+
+                        {/* Route Dropdown */}
+                        <div className="space-y-4">
+                           <div className="space-y-2">
+                              <label className="text-[10px] uppercase font-bold text-white/30 ml-1 tracking-widest">Select Route</label>
+                              <div className="relative">
+                                 <select 
+                                    value={selectedRoute?.id || ''}
+                                    onChange={(e) => {
+                                       const route = vesselRoutes.find(r => r.id === parseInt(e.target.value));
+                                       setSelectedRoute(route || null);
+                                    }}
+                                    className="w-full bg-[#0a0e1a] border border-white/10 rounded-xl px-4 py-3 text-sm font-medium focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/20 outline-none transition-all appearance-none cursor-pointer"
+                                 >
+                                    <option value="">Select a route...</option>
+                                    {vesselRoutes.map(route => (
+                                       <option key={route.id} value={route.id}>
+                                          {route.route_name} {route.is_active ? '(Active)' : ''}
+                                       </option>
+                                    ))}
+                                 </select>
+                                 <ChevronRight className="w-4 h-4 text-white/30 absolute right-4 top-1/2 -translate-y-1/2 rotate-90 pointer-events-none" />
+                              </div>
+                           </div>
+
+                           {/* Selected Route Info */}
+                           {selectedRoute && (
+                              <div className="bg-blue-500/5 border border-blue-500/20 rounded-2xl p-4">
+                                 <div className="flex items-center gap-2 text-blue-400 text-xs font-bold uppercase tracking-widest mb-3">
+                                    <Anchor className="w-4 h-4" />
+                                    Route Ports
+                                 </div>
+                                 <div className="flex flex-wrap items-center gap-2">
+                                    {selectedRoute.port_codes.map((port, idx) => (
+                                       <React.Fragment key={port}>
+                                          <span className="bg-white/10 text-white px-3 py-1.5 rounded-lg text-sm font-mono font-bold">
+                                             {port}
+                                          </span>
+                                          {idx < selectedRoute.port_codes.length - 1 && (
+                                             <ChevronRight className="w-4 h-4 text-white/20" />
+                                          )}
+                                       </React.Fragment>
+                                    ))}
+                                 </div>
+                              </div>
+                           )}
+
+                           {/* Port Selector - Always Visible */}
+                           <div className="pt-4 border-t border-white/5 space-y-4">
+                                    <div className="flex items-center justify-between">
+                                 <span className="text-sm font-bold flex items-center gap-2">
+                                    <Plus className="w-4 h-4 text-blue-400" />
+                                    Add Ports for Analysis
+                                 </span>
+                                 {selectedRoutePorts.length > 0 && (
+                                    <button 
+                                       onClick={() => {
+                                          setSelectedRoutePorts([]);
+                                          setPortSearchQuery('');
+                                       }} 
+                                       className="text-white/40 hover:text-white text-xs"
+                                    >
+                                       Clear All
+                                       </button>
+                                 )}
+                                    </div>
+                                    
+                                    {/* Port Selector */}
+                                    <div className="space-y-2">
+                                       <label className="text-[10px] uppercase font-bold text-white/30 ml-1 tracking-widest">
+                                          Select Ports 
+                                          {allPorts.length > 0 && (
+                                             <span className="text-blue-400 ml-2">({allPorts.length} available)</span>
+                                          )}
+                                       </label>
+                                       
+                                       {/* Search Input */}
+                                       <div className="relative">
+                                          <input 
+                                             type="text"
+                                             value={portSearchQuery}
+                                             onChange={(e) => {
+                                                setPortSearchQuery(e.target.value);
+                                                setShowPortDropdown(true);
+                                             }}
+                                             onFocus={() => setShowPortDropdown(true)}
+                                             onBlur={() => setTimeout(() => setShowPortDropdown(false), 300)}
+                                             placeholder="Click to browse or type to search..."
+                                             className="w-full bg-[#0a0e1a] border border-white/10 rounded-xl px-4 py-3 text-sm font-medium focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/20 outline-none transition-all placeholder:text-white/20"
+                                          />
+                                          
+                                          {/* Dropdown */}
+                                          {showPortDropdown && allPorts.length > 0 && (
+                                             <div className="absolute z-50 w-full mt-2 bg-[#0f172a] border border-white/10 rounded-xl shadow-2xl max-h-60 overflow-y-auto">
+                                                {(() => {
+                                                   const query = portSearchQuery.toLowerCase();
+                                                   const filtered = allPorts
+                                                      .filter(port => {
+                                                         if (!query) return true; // Show all if no query
+                                                         return (
+                                                            port.name.toLowerCase().includes(query) ||
+                                                            port.country.toLowerCase().includes(query) ||
+                                                            port.un_locode.toLowerCase().includes(query)
+                                                         );
+                                                      })
+                                                      .filter(port => !selectedRoutePorts.find(sp => sp.un_locode === port.un_locode))
+                                                      .slice(0, 15);
+                                                   
+                                                   if (filtered.length === 0) {
+                                                      return (
+                                                         <div className="px-4 py-3 text-center text-white/30 text-sm">
+                                                            No ports found
+                                                         </div>
+                                                      );
+                                                   }
+                                                   
+                                                   return filtered.map(port => (
+                                                      <button
+                                                         key={port.id}
+                                                         onClick={() => {
+                                                            setSelectedRoutePorts(prev => [...prev, port]);
+                                                            setPortSearchQuery('');
+                                                            setShowPortDropdown(false);
+                                                         }}
+                                                         className="w-full px-4 py-3 text-left hover:bg-blue-500/10 border-b border-white/5 last:border-0 transition-colors"
+                                                      >
+                                                         <div className="flex items-center justify-between">
+                                                            <div>
+                                                               <span className="font-bold text-sm">{port.name}</span>
+                                                               <span className="text-white/40 text-xs ml-2">({port.un_locode})</span>
+                                                            </div>
+                                                            <span className="text-white/30 text-xs">{port.country}</span>
+                                                         </div>
+                                                      </button>
+                                                   ));
+                                                })()}
+                                             </div>
+                                          )}
+                                       </div>
+                                       
+                                       {/* Selected Ports */}
+                                       {selectedRoutePorts.length > 0 && (
+                                          <div className="space-y-2">
+                                             <div className="flex items-center gap-2 text-blue-400 text-xs font-bold uppercase tracking-widest">
+                                                <Anchor className="w-3 h-3" />
+                                                Selected Route ({selectedRoutePorts.length} ports)
+                                             </div>
+                                             <div className="bg-blue-500/5 border border-blue-500/20 rounded-xl p-3 space-y-2">
+                                                {selectedRoutePorts.map((port, idx) => (
+                                                   <div key={port.un_locode} className="flex items-center justify-between bg-white/5 rounded-lg px-3 py-2">
+                                                      <div className="flex items-center gap-3">
+                                                         <span className="text-white/40 text-xs font-bold">{idx + 1}</span>
+                                                         <div>
+                                                            <span className="font-bold text-sm">{port.name}</span>
+                                                            <span className="text-white/40 text-xs ml-2">({port.un_locode})</span>
+                                                         </div>
+                                                      </div>
+                                                      <button
+                                                         onClick={() => setSelectedRoutePorts(prev => prev.filter(p => p.un_locode !== port.un_locode))}
+                                                         className="text-red-400 hover:text-red-300 transition-colors"
+                                                      >
+                                                         <X className="w-4 h-4" />
+                                                      </button>
+                                                   </div>
+                                                ))}
+                                                
+                                                {/* Route Preview */}
+                                          <div className="pt-2 border-t border-white/10 flex items-center gap-2 text-xs flex-wrap">
+                                                   <span className="text-white/30">Route:</span>
+                                                   {selectedRoutePorts.map((port, idx) => (
+                                                      <React.Fragment key={port.un_locode}>
+                                                         <span className="font-mono text-white/60">{port.un_locode}</span>
+                                                         {idx < selectedRoutePorts.length - 1 && (
+                                                            <ChevronRight className="w-3 h-3 text-white/20" />
+                                                         )}
+                                                      </React.Fragment>
+                                                   ))}
+                                                </div>
+                                             </div>
+                                          </div>
+                                       )}
+                                    </div>
+                                    
+                              {/* Save as Route - Only show when vessel is available */}
+                              {vesselId && selectedRoutePorts.length > 0 && (
+                                 <div className="pt-4 border-t border-white/10 space-y-3">
+                                    <span className="text-[10px] uppercase font-bold text-white/30 tracking-widest">
+                                       Save as Route (Optional)
+                                    </span>
+                                    <input 
+                                       type="text"
+                                       value={newRouteName}
+                                       onChange={(e) => setNewRouteName(e.target.value)}
+                                       placeholder="Route name (e.g., Asia-Europe Express)"
+                                       className="w-full bg-[#0a0e1a] border border-white/10 rounded-xl px-4 py-3 text-sm font-medium focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/20 outline-none transition-all placeholder:text-white/20"
+                                    />
+                                    <button 
+                                       onClick={handleCreateRoute}
+                                       disabled={isCreatingRoute || !newRouteName.trim()}
+                                       className="w-full py-3 bg-blue-600 hover:bg-blue-500 disabled:bg-white/10 disabled:text-white/30 text-white rounded-xl font-bold text-sm transition-all"
+                                    >
+                                       {isCreatingRoute ? 'Saving...' : 'Save Route'}
+                                    </button>
+                                 </div>
+                              )}
+                           </div>
+                        </div>
+                     </section>
+
+                     {/* Documents on File */}
+                     <section className="bg-white/[0.02] border border-white/5 rounded-[2.5rem] p-8">
+                        <div className="flex items-center justify-between mb-6">
+                           <h3 className="text-lg font-bold flex items-center gap-2">
+                              <FileText className="w-5 h-5 text-indigo-500" />
+                              Documents on File
+                           </h3>
+                           <span className="text-white/40 text-sm">{vesselDocuments.length} documents</span>
+                        </div>
+
+                        {vesselDocuments.length === 0 ? (
+                           <div className="text-center py-12">
+                              <FileText className="w-12 h-12 text-white/10 mx-auto mb-4" />
+                              <p className="text-white/40 text-sm mb-4">No documents uploaded yet</p>
+                              <button 
+                                 onClick={() => navigate('/documents')}
+                                 className="text-blue-400 hover:text-blue-300 text-sm font-bold"
+                              >
+                                 Go to Document Upload
+                              </button>
+                           </div>
+                        ) : (
+                           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                              <DocumentCountCard label="Total Documents" count={vesselDocuments.length} color="indigo" />
+                              <DocumentCountCard 
+                                 label="Valid" 
+                                 count={vesselDocuments.filter(d => {
+                                    if (!d.expiry_date) return true;
+                                    return new Date(d.expiry_date) > new Date();
+                                 }).length} 
+                                 color="emerald" 
+                              />
+                              <DocumentCountCard 
+                                 label="Expiring Soon" 
+                                 count={vesselDocuments.filter(d => {
+                                    if (!d.expiry_date) return false;
+                                    const daysUntil = Math.ceil((new Date(d.expiry_date) - new Date()) / (1000 * 60 * 60 * 24));
+                                    return daysUntil > 0 && daysUntil <= 30;
+                                 }).length} 
+                                 color="amber" 
+                              />
+                              <DocumentCountCard 
+                                 label="Expired" 
+                                 count={vesselDocuments.filter(d => {
+                                    if (!d.expiry_date) return false;
+                                    return new Date(d.expiry_date) <= new Date();
+                                 }).length} 
+                                 color="red" 
+                              />
+                           </div>
+                        )}
+                     </section>
+
+                     {/* Analysis Results */}
+                     {missingDocsResult && (
+                        <section className="bg-white/[0.02] border border-white/5 rounded-[2.5rem] p-8">
+                           <div className="flex items-center justify-between mb-6">
+                              <h3 className="text-lg font-bold flex items-center gap-2">
+                                 <ClipboardCheck className="w-5 h-5 text-emerald-500" />
+                                 Analysis Results
+                              </h3>
+                              <span className="text-white/40 text-sm">
+                                 Route: {missingDocsResult.route_name}
+                              </span>
+                           </div>
+                           <GapAnalysisReport
+                              overallStatus={missingDocsResult.overall_status}
+                              complianceScore={missingDocsResult.compliance_score}
+                              validDocuments={missingDocsResult.valid_documents}
+                              expiringDocuments={missingDocsResult.expiring_soon_documents}
+                              expiredDocuments={missingDocsResult.expired_documents}
+                              missingDocuments={missingDocsResult.missing_documents}
+                              vesselMissingDocuments={missingDocsResult.vessel_missing_documents}
+                              cargoMissingDocuments={missingDocsResult.cargo_missing_documents}
+                              vesselValidDocuments={missingDocsResult.vessel_valid_documents}
+                              cargoValidDocuments={missingDocsResult.cargo_valid_documents}
+                              recommendations={missingDocsResult.recommendations}
+                           />
+                        </section>
+                     )}
+                  </div>
+
+                  {/* Right Column - Action Panel */}
+                  <div className="space-y-6">
+                     {/* Run Analysis Card */}
+                     <section className="bg-gradient-to-br from-emerald-600/20 to-blue-600/10 border border-emerald-500/20 rounded-[2rem] p-8">
+                        <div className="w-16 h-16 bg-emerald-500/10 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                           <Search className="w-8 h-8 text-emerald-400" />
+                        </div>
+                        <h2 className="text-xl font-bold mb-2 text-center">Run Compliance Analysis</h2>
+                        <p className="text-white/40 text-sm mb-8 text-center leading-relaxed">
+                           AI agents will analyze your documents against route requirements to identify gaps.
+                        </p>
+
+                        {analysisError && (
+                           <div className="mb-4 p-4 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400 text-sm flex items-center gap-2">
+                              <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                              {analysisError}
+                           </div>
+                        )}
+
+                        <button 
+                           onClick={handleRunAnalysis}
+                           disabled={(!selectedRoute && selectedRoutePorts.length === 0) || isAnalyzing}
+                           className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 disabled:bg-white/10 disabled:text-white/30 text-white rounded-2xl font-black tracking-widest uppercase text-sm shadow-xl shadow-emerald-900/40 transition-all active:scale-95 flex items-center justify-center gap-2"
+                        >
+                           {isAnalyzing ? (
+                              <>
+                                 <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                 Analyzing...
+                              </>
+                           ) : (
+                              <>
+                                 <Search className="w-4 h-4" />
+                                 Run Analysis
+                              </>
+                           )}
+                        </button>
+
+                        {!selectedRoute && selectedRoutePorts.length === 0 && (
+                           <p className="text-amber-400/60 text-xs text-center mt-4">
+                              Please select a route or add ports for analysis
+                           </p>
+                        )}
+                        {vesselDocuments.length === 0 && (selectedRoute || selectedRoutePorts.length > 0) && (
+                           <p className="text-blue-400/60 text-xs text-center mt-4">
+                              No documents uploaded yet - analysis will show all required documents
+                           </p>
+                        )}
+                     </section>
+
+                     {/* Analysis Info */}
+                     <section className="bg-white/[0.02] border border-white/5 rounded-[2rem] p-6">
+                        <h3 className="text-sm font-bold mb-4 flex items-center gap-2">
+                           <Info className="w-4 h-4 text-blue-400" />
+                           How It Works
+                        </h3>
+                        <div className="space-y-3 text-sm text-white/50">
+                           <div className="flex gap-3">
+                              <span className="text-blue-400 font-bold">1.</span>
+                              <span>Route Requirements Analyst identifies all required documents</span>
+                           </div>
+                           <div className="flex gap-3">
+                              <span className="text-blue-400 font-bold">2.</span>
+                              <span>Gap Detector compares your documents against requirements</span>
+                           </div>
+                           <div className="flex gap-3">
+                              <span className="text-blue-400 font-bold">3.</span>
+                              <span>AI generates prioritized recommendations for compliance</span>
+                           </div>
+                        </div>
+                     </section>
+
+                     {/* Quick Stats */}
+                     {missingDocsResult && (
+                        <section className="bg-white/[0.02] border border-white/5 rounded-[2rem] p-6">
+                           <h3 className="text-sm font-bold mb-4">Quick Summary</h3>
+                           <div className="space-y-3">
+                              <div className="flex justify-between items-center">
+                                 <span className="text-white/50 text-sm">Compliance Score</span>
+                                 <span className={`font-bold ${
+                                    missingDocsResult.compliance_score >= 80 ? 'text-emerald-400' :
+                                    missingDocsResult.compliance_score >= 50 ? 'text-amber-400' : 'text-red-400'
+                                 }`}>
+                                    {missingDocsResult.compliance_score}%
+                                 </span>
+                              </div>
+                              <div className="flex justify-between items-center">
+                                 <span className="text-white/50 text-sm">Missing Documents</span>
+                                 <span className="font-bold text-red-400">{missingDocsResult.missing_documents.length}</span>
+                              </div>
+                              <div className="flex justify-between items-center">
+                                 <span className="text-white/50 text-sm">Recommendations</span>
+                                 <span className="font-bold text-blue-400">{missingDocsResult.recommendations.length}</span>
+                              </div>
+                           </div>
+                        </section>
+                     )}
+                  </div>
                </div>
             </motion.div>
           )}
@@ -657,6 +1257,23 @@ function ParsingStep({ label, active, completed }) {
          <div className="w-5 h-5 border-2 border-white/10 rounded-full" />
        )}
        <span className={`text-sm font-medium ${completed ? 'text-white/90' : active ? 'text-white' : 'text-white/20'}`}>{label}</span>
+    </div>
+  );
+}
+
+function DocumentCountCard({ label, count, color }) {
+  const colorClasses = {
+    emerald: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
+    amber: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
+    red: 'bg-red-500/10 text-red-400 border-red-500/20',
+    indigo: 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20',
+    blue: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
+  };
+  
+  return (
+    <div className={`p-4 rounded-2xl border ${colorClasses[color] || colorClasses.blue} text-center`}>
+      <div className="text-2xl font-black">{count}</div>
+      <div className="text-[10px] uppercase font-bold tracking-wider opacity-70 mt-1">{label}</div>
     </div>
   );
 }
