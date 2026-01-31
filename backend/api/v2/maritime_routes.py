@@ -35,7 +35,7 @@ from models.compliance_report import (
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/v2/maritime", tags=["Maritime Compliance"])
+router = APIRouter(prefix="/v2/maritime", tags=["Maritime Compliance"])
 
 
 # ========== Request/Response Models ==========
@@ -358,6 +358,27 @@ async def provision_user(
 
     # Check if customer has at least one vessel
     vessel = db.query(Vessel).filter(Vessel.customer_id == customer.id).first()
+    
+    # If no vessel exists, create a default one
+    if not vessel:
+        import random
+        default_imo = f"{9000000 + random.randint(0, 999999):07d}"
+        vessel = Vessel(
+            customer_id=customer.id,
+            name=f"{customer.name}'s Vessel",
+            imo_number=default_imo,
+            vessel_type=VesselType.CONTAINER,
+            flag_state="LIBERIA",
+            gross_tonnage=50000.0,
+            mmsi=None,
+            call_sign=None,
+            dwt=None,
+            year_built=2020,
+            classification_society="Lloyd's Register",
+        )
+        db.add(vessel)
+        db.commit()
+        db.refresh(vessel)
 
     return ProvisionResponse(
         customer_id=customer.id,
