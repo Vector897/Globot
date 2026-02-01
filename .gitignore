@@ -64,6 +64,7 @@ env/
 venv.bak/
 venv_backup/
 
+
 # Jupyter Notebook
 .ipynb_checkpoints
 
@@ -298,3 +299,4 @@ site/
 
 
 
+.txt

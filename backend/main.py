@@ -28,6 +28,7 @@ from core.clerk_auth import get_current_user, User
 from api.v2.demo_routes import router as demo_router
 from api.v2.market_sentinel_routes import router as market_sentinel_router
 from api.v2.maritime_routes import router as maritime_router
+from api.v2.visual_risk_routes import router as visual_risk_router
 
 
 # 配置日志
@@ -47,6 +48,7 @@ app = FastAPI(
 app.include_router(demo_router)
 app.include_router(market_sentinel_router)
 app.include_router(maritime_router)
+app.include_router(visual_risk_router)
 from api.analytics import router as analytics_router
 app.include_router(analytics_router)
 
