@@ -54,9 +54,9 @@
   grid-template-columns: 1fr 1fr;
   gap: 60px;
   align-items: center;
-  padding: 80px 80px 120px;
+  padding: 0px 40px 120px;
   max-width: 1400px;
-  margin: 0 auto;
+  margin: -40px auto 0;
   scroll-snap-align: start;
   scroll-snap-stop: always;
 }

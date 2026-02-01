@@ -7,10 +7,6 @@ pydantic>=2.10.0
 pydantic-settings>=2.6.0
 anyio>=3.7.1,<5
 numpy>=1.26.0
-pydantic>=2.10.0
-pydantic-settings>=2.6.0
-anyio>=3.7.1,<5
-numpy>=1.26.0
 python-multipart==0.0.21
 
 # Database
@@ -26,14 +22,13 @@ pydantic_core==2.33.2
 # AI/LLM
 crewai==1.7.2
 openai==1.83.0
-langchain-google-genai
-google-generativeai
+
 # Security
 python-jose[cryptography]==3.3.0
 python-dotenv==1.1.1
 
 # WebSockets
-websockets==15.0
+websockets==16.0
 
 # HTTP Client (used by crewai/openai)
 httpx==0.28.1

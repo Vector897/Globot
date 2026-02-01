@@ -1,5 +1,5 @@
 """
-OCR Service - Document text extraction using LandingAI
+OCR Service - Document text extraction using Gemini Vision
 Handles PDF, PNG, JPG for maritime certificates and permits
 """
 import logging
@@ -24,7 +24,7 @@ class OCRResult:
     """Result of OCR text extraction"""
     text: str
     confidence: float
-    provider: str = "landing_ai"
+    provider: str = "gemini"
     pages: int = 1
     extracted_fields: Dict[str, Any] = field(default_factory=dict)
     raw_response: Optional[Dict] = None
@@ -37,7 +37,7 @@ class OCRResult:
 
 class OCRService:
     """
-    OCR Service using LandingAI Document AI for text extraction
+    OCR Service using Gemini Vision for text extraction
 
     Supports:
     - PDF documents
@@ -89,23 +89,16 @@ class OCRService:
     }
 
     def __init__(self):
-        self.api_key = settings.landing_ai_api_key
-        self.base_url = settings.landing_ai_base_url
+        self.api_key = settings.google_api_key
         self._client: Optional[httpx.AsyncClient] = None
 
         if not self.api_key:
-            logger.warning("LandingAI API key not configured. OCR will run in MOCK mode.")
+            logger.warning("Google API key not configured. OCR will run in MOCK mode.")
 
     async def _get_client(self) -> httpx.AsyncClient:
         """Get or create HTTP client"""
         if self._client is None or self._client.is_closed:
-            self._client = httpx.AsyncClient(
-                timeout=60.0,
-                headers={
-                    "Authorization": f"Bearer {self.api_key}",
-                    "Content-Type": "application/json",
-                }
-            )
+            self._client = httpx.AsyncClient(timeout=60.0)
         return self._client
 
     async def close(self):
@@ -119,7 +112,7 @@ class OCRService:
         mime_type: Optional[str] = None
     ) -> OCRResult:
         """
-        Extract text from a document using LandingAI
+        Extract text from a document using Gemini Vision
 
         Args:
             file_path: Path to the file
@@ -148,67 +141,11 @@ class OCRService:
                 error=f"Unsupported file type: {mime_type}"
             )
 
-        # Check if in mock mode
-        if not self.api_key:
-            return self._mock_extract(file_path, mime_type)
-
+        # Read file content
         try:
-            # Read and encode file
             with open(file_path, "rb") as f:
                 file_content = f.read()
-
-            file_base64 = base64.b64encode(file_content).decode("utf-8")
-
-            # Call LandingAI API
-            client = await self._get_client()
-
-            # LandingAI Document AI endpoint
-            response = await client.post(
-                f"{self.base_url}/v1/document/extract",
-                json={
-                    "file": file_base64,
-                    "file_type": self.SUPPORTED_MIME_TYPES[mime_type],
-                    "extract_text": True,
-                    "extract_tables": True,
-                    "extract_key_value_pairs": True,
-                }
-            )
-
-            if response.status_code != 200:
-                logger.error(f"LandingAI API error: {response.status_code} - {response.text}")
-                return OCRResult(
-                    text="",
-                    confidence=0.0,
-                    error=f"API error: {response.status_code}",
-                    raw_response={"status": response.status_code, "body": response.text}
-                )
-
-            result = response.json()
-
-            # Extract text from response
-            extracted_text = self._parse_landing_ai_response(result)
-
-            # Extract structured fields using patterns
-            extracted_fields = self._extract_structured_fields(extracted_text)
-
-            # Calculate confidence (use API confidence if available)
-            confidence = result.get("confidence", 0.85)
-
-            return OCRResult(
-                text=extracted_text,
-                confidence=confidence,
-                provider="landing_ai",
-                pages=result.get("pages", 1),
-                extracted_fields=extracted_fields,
-                raw_response=result
-            )
-
-        except httpx.TimeoutException:
-            return OCRResult(
-                text="",
-                confidence=0.0,
-                error="Request timeout"
-            )
+            return await self.extract_text_from_bytes(file_content, mime_type, Path(file_path).name)
         except Exception as e:
             logger.error(f"OCR extraction error: {e}")
             return OCRResult(
@@ -224,101 +161,117 @@ class OCRService:
         filename: Optional[str] = None
     ) -> OCRResult:
         """
-        Extract text from file bytes directly
-
-        Args:
-            content: File content as bytes
-            mime_type: MIME type of the file
-            filename: Optional filename for logging
-
-        Returns:
-            OCRResult with extracted text and metadata
+        Extract text from file bytes directly.
+        Uses Gemini Vision as primary OCR engine.
         """
+        # 1. Try JSON Parsing first (for structured data files)
+        try:
+            text_content = content.decode("utf-8")
+            data = json.loads(text_content)
+            
+            # Check for known structure (ship_intelligence_profile)
+            if isinstance(data, dict) and "ship_intelligence_profile" in data:
+                profile = data["ship_intelligence_profile"]
+                vessel_particulars = profile.get("vessel_particulars", {})
+                
+                logger.info(f"JSON Parser: Successfully extracted data from {filename}")
+                
+                return OCRResult(
+                    text=json.dumps(data, indent=2),
+                    confidence=1.0,
+                    provider="json_parser",
+                    extracted_fields={
+                        "vessel_name": vessel_particulars.get("vessel_name"),
+                        "imo_number": vessel_particulars.get("imo_number"),
+                        "call_sign": vessel_particulars.get("call_sign"),
+                        "flag_state": vessel_particulars.get("flag"),
+                        "vessel_type": vessel_particulars.get("vessel_type"),
+                        "gross_tonnage": "N/A",
+                        "issue_date": datetime.now().strftime("%Y-%m-%d"),
+                    }
+                )
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            pass  # Not a JSON file, or binary content
+            
         if mime_type not in self.SUPPORTED_MIME_TYPES:
-            return OCRResult(
+             return OCRResult(
                 text="",
                 confidence=0.0,
                 error=f"Unsupported file type: {mime_type}"
             )
 
-        if not self.api_key:
-            return self._mock_extract_from_bytes(content, mime_type, filename)
+        # 2. Use Gemini Vision OCR
+        if self.api_key and "DEMO_KEY" not in self.api_key:
+            try:
+                logger.info(f"Using Gemini Vision OCR for {filename}...")
+                
+                prompt = """
+                Extract the following fields from this maritime document into JSON format:
+                - vessel_name
+                - imo_number
+                - call_sign
+                - flag_state
+                - vessel_type
+                - gross_tonnage
+                - issue_date (YYYY-MM-DD or whatever is present)
+                - expiry_date (YYYY-MM-DD or whatever is present)
+                - issuing_authority
+                - document_number
 
-        try:
-            file_base64 = base64.b64encode(content).decode("utf-8")
-
-            client = await self._get_client()
-
-            response = await client.post(
-                f"{self.base_url}/v1/document/extract",
-                json={
-                    "file": file_base64,
-                    "file_type": self.SUPPORTED_MIME_TYPES[mime_type],
-                    "extract_text": True,
-                    "extract_tables": True,
-                    "extract_key_value_pairs": True,
+                Return ONLY raw JSON. No markdown formatting (no ```json blocks).
+                """
+                
+                b64_content = base64.b64encode(content).decode('utf-8')
+                url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={self.api_key}"
+                
+                payload = {
+                    "contents": [{
+                        "parts": [
+                            {"text": prompt},
+                            {
+                                "inline_data": {
+                                    "mime_type": mime_type,
+                                    "data": b64_content
+                                }
+                            }
+                        ]
+                    }]
                 }
-            )
+                
+                async with httpx.AsyncClient() as client:
+                    resp = await client.post(url, json=payload, timeout=60.0)
+                    
+                if resp.status_code == 200:
+                    result = resp.json()
+                    candidates = result.get("candidates", [])
+                    if candidates:
+                        raw_text = candidates[0]["content"]["parts"][0]["text"]
+                        raw_text = raw_text.replace("```json", "").replace("```", "").strip()
+                        
+                        try:
+                            extracted_data = json.loads(raw_text)
+                            logger.info(f"Gemini Vision OCR Success for {filename}")
+                            
+                            return OCRResult(
+                                text=json.dumps(extracted_data, indent=2),
+                                confidence=0.95,
+                                provider="gemini",
+                                pages=1,
+                                extracted_fields=extracted_data
+                            )
+                        except json.JSONDecodeError as je:
+                            logger.warning(f"Gemini returned invalid JSON: {je}. Raw: {raw_text[:100]}...")
+                    else:
+                         logger.warning("Gemini response contained no candidates.")
+                else:
+                    logger.error(f"Gemini API returned status {resp.status_code}: {resp.text}")
 
-            if response.status_code != 200:
-                return OCRResult(
-                    text="",
-                    confidence=0.0,
-                    error=f"API error: {response.status_code}"
-                )
+            except Exception as e:
+                logger.error(f"Gemini Vision OCR Failed: {e}")
 
-            result = response.json()
-            extracted_text = self._parse_landing_ai_response(result)
-            extracted_fields = self._extract_structured_fields(extracted_text)
-
-            return OCRResult(
-                text=extracted_text,
-                confidence=result.get("confidence", 0.85),
-                provider="landing_ai",
-                pages=result.get("pages", 1),
-                extracted_fields=extracted_fields,
-                raw_response=result
-            )
-
-        except Exception as e:
-            logger.error(f"OCR extraction error: {e}")
-            return OCRResult(
-                text="",
-                confidence=0.0,
-                error=str(e)
-            )
-
-    def _parse_landing_ai_response(self, response: Dict) -> str:
-        """Parse LandingAI API response to extract text"""
-        text_parts = []
-
-        # Extract main text content
-        if "text" in response:
-            text_parts.append(response["text"])
-
-        # Extract text from pages
-        if "pages" in response and isinstance(response["pages"], list):
-            for page in response["pages"]:
-                if "text" in page:
-                    text_parts.append(page["text"])
-
-        # Extract key-value pairs
-        if "key_value_pairs" in response:
-            for kv in response.get("key_value_pairs", []):
-                key = kv.get("key", "")
-                value = kv.get("value", "")
-                if key and value:
-                    text_parts.append(f"{key}: {value}")
-
-        # Extract table data
-        if "tables" in response:
-            for table in response.get("tables", []):
-                if "cells" in table:
-                    for cell in table["cells"]:
-                        if cell.get("text"):
-                            text_parts.append(cell["text"])
-
-        return "\n".join(text_parts)
+        # 3. Static Mock (Fallback when Gemini is not available)
+        logger.warning("Using Static Mock Data (Gemini not configured or failed)")
+        return self._mock_extract_from_bytes(content, mime_type, filename)
 
     def _extract_structured_fields(self, text: str) -> Dict[str, Any]:
         """Extract structured fields from text using regex patterns"""
@@ -329,7 +282,6 @@ class OCRService:
                 match = re.search(pattern, text, re.IGNORECASE)
                 if match:
                     value = match.group(1).strip()
-                    # Clean up the value
                     value = re.sub(r'\s+', ' ', value)
                     fields[field_name] = value
                     break
@@ -371,67 +323,24 @@ class OCRService:
         }
         return mime_map.get(ext, "application/octet-stream")
 
-    def _mock_extract(self, file_path: str, mime_type: str) -> OCRResult:
-        """Generate mock OCR result for testing"""
-        filename = Path(file_path).name
-
-        mock_text = f"""
-INTERNATIONAL SHIP SAFETY CERTIFICATE
-(SOLAS, 1974, as amended)
-
-Certificate No: MOCK-2024-{hash(filename) % 10000:04d}
-
-Vessel Name: M/V MOCK VESSEL
-IMO Number: 9876543
-Flag State: Panama
-Port of Registry: Panama City
-Gross Tonnage: 45,000
-
-This is to certify that the above-named ship has been surveyed
-in accordance with the requirements of the International Convention
-for the Safety of Life at Sea, 1974, as amended.
-
-Issued by: Mock Maritime Authority
-Issue Date: 01/01/2024
-Valid Until: 31/12/2025
-
-[MOCK DATA - LandingAI API key not configured]
-"""
-
-        return OCRResult(
-            text=mock_text.strip(),
-            confidence=0.75,
-            provider="mock",
-            pages=1,
-            extracted_fields={
-                "document_number": f"MOCK-2024-{hash(filename) % 10000:04d}",
-                "vessel_name": "MOCK VESSEL",
-                "imo_number": "9876543",
-                "flag_state": "Panama",
-                "gross_tonnage": "45,000",
-                "issue_date": "01/01/2024",
-                "expiry_date": "31/12/2025",
-                "issuing_authority": "Mock Maritime Authority",
-            }
-        )
-
     def _mock_extract_from_bytes(
         self,
         content: bytes,
         mime_type: str,
         filename: Optional[str]
     ) -> OCRResult:
-        """Generate mock OCR result from bytes"""
+        """Generate static mock OCR result"""
+        doc_no = hash(content[:100]) % 10000
         mock_text = f"""
 INTERNATIONAL MARITIME CERTIFICATE
 
-Certificate No: MOCK-{hash(content[:100]) % 10000:04d}
+Certificate No: MOCK-{doc_no:04d}
 
 Vessel Name: M/V TEST VESSEL
 IMO Number: 1234567
 
 This document has been processed in MOCK mode.
-LandingAI API key is not configured.
+Google API key is not configured.
 
 Issue Date: 15/06/2024
 Expiry Date: 14/06/2025
@@ -443,7 +352,7 @@ Expiry Date: 14/06/2025
             provider="mock",
             pages=1,
             extracted_fields={
-                "document_number": f"MOCK-{hash(content[:100]) % 10000:04d}",
+                "document_number": f"MOCK-{doc_no:04d}",
                 "vessel_name": "TEST VESSEL",
                 "imo_number": "1234567",
                 "issue_date": "15/06/2024",

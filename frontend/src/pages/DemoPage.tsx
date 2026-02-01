@@ -10,6 +10,7 @@ import { DemoStartScreen } from '../components/DemoStartScreen';
 import { AzureBadges } from '../components/AzureBadges';
 import { AgentWorkflow } from '../components/AgentWorkflow';
 import { AgentCoTPanel } from '../components/AgentCoTPanel';
+import { VisualRiskPanel } from '../components/VisualRiskPanel';
 
 import { Route, GlobalPort } from '../utils/routeCalculator';
 import { Ship } from '../utils/shipData';
@@ -140,6 +141,12 @@ export const DemoPage: React.FC = () => {
   const [executionPhase, setExecutionPhase] = useState<'pending' | 'executing' | 'complete'>('pending');
   const [executionSummary, setExecutionSummary] = useState<ExecutionSummary | null>(null);
   const [awaitingConfirmation, setAwaitingConfirmation] = useState(false);
+
+  // === Visual Risk State (NEW) ===
+  const [visualRiskAnalyzing, setVisualRiskAnalyzing] = useState(false);
+  const [visualRiskSource, setVisualRiskSource] = useState('');
+  const [visualRiskLocation, setVisualRiskLocation] = useState('');
+  const [visualRiskAnalysis, setVisualRiskAnalysis] = useState<any>(null);
 
   // === Resizable Right Sidebar ===
   const [sidebarWidth, setSidebarWidth] = useState(420);
@@ -356,6 +363,19 @@ export const DemoPage: React.FC = () => {
         // Optional: Show final summary modal or notification
         console.log("Demo Sequence Completed", lastEvent.summary);
         break;
+
+      // --- Visual Risk Events (NEW) ---
+      case 'VISUAL_RISK_START':
+        setVisualRiskAnalyzing(true);
+        setVisualRiskSource(lastEvent.source || 'Satellite Feed');
+        setVisualRiskLocation(lastEvent.location || '');
+        setVisualRiskAnalysis(null);
+        break;
+
+      case 'VISUAL_RISK_RESULT':
+        setVisualRiskAnalyzing(false);
+        setVisualRiskAnalysis(lastEvent.analysis);
+        break;
     }
   }, [events]);
 
@@ -415,6 +435,12 @@ export const DemoPage: React.FC = () => {
     setExecutionPhase('pending');
     setExecutionSummary(null);
     setAwaitingConfirmation(false);
+
+    // Reset Visual Risk state (NEW)
+    setVisualRiskAnalyzing(false);
+    setVisualRiskSource('');
+    setVisualRiskLocation('');
+    setVisualRiskAnalysis(null);
 
     setCurrentTime(0);
 
@@ -527,34 +553,35 @@ export const DemoPage: React.FC = () => {
 
           <button
             onClick={() => setIsChangingRoute(true)}
-            className="px-3 py-1.5 rounded-sm text-xs font-medium transition-all flex items-center gap-2 bg-[#0a0e1a] border border-[#1a2332] text-white/60 hover:text-white/90 hover:border-[#4a90e2]/50"
+            style={{ background: '#1a2332', border: '1px solid #2d3a4f', color: '#ffffff', fontWeight: 700, fontSize: '14px' }}
+            className="px-3 py-1.5 rounded-sm transition-all flex items-center gap-2 hover:bg-[#2d3a4f]"
           >
-            <RefreshCw className="w-3.5 h-3.5" strokeWidth={2} />
+            <RefreshCw className="w-4 h-4" strokeWidth={2} style={{ color: '#ffffff' }} />
             Change Route
           </button>
 
-          <div className="flex items-center gap-1 bg-[#0a0e1a] border border-[#1a2332] rounded-sm p-1">
+          <div className="flex items-center gap-1 bg-[#1a2332] border border-[#2d3a4f] rounded-sm p-1">
             <button
               onClick={() => setIs3D(false)}
-              className={`px-3 py-1.5 rounded-sm text-xs font-medium transition-all flex items-center gap-2 ${!is3D ? 'bg-[#4a90e2]/20 text-[#4a90e2] border border-[#4a90e2]/30' : 'text-white/40 hover:text-white/60'
-                }`}
+              style={{ background: !is3D ? '#0078d4' : 'transparent', color: '#ffffff', fontWeight: 700, fontSize: '14px' }}
+              className="px-3 py-1.5 rounded-sm transition-all flex items-center gap-2"
             >
-              <Map className="w-3.5 h-3.5" strokeWidth={2} />
+              <Map className="w-4 h-4" strokeWidth={2} style={{ color: '#ffffff' }} />
               2D
             </button>
             <button
               onClick={() => setIs3D(true)}
-              className={`px-3 py-1.5 rounded-sm text-xs font-medium transition-all flex items-center gap-2 ${is3D ? 'bg-[#4a90e2]/20 text-[#4a90e2] border border-[#4a90e2]/30' : 'text-white/40 hover:text-white/60'
-                }`}
+              style={{ background: is3D ? '#0078d4' : 'transparent', color: '#ffffff', fontWeight: 700, fontSize: '14px' }}
+              className="px-3 py-1.5 rounded-sm transition-all flex items-center gap-2"
             >
-              <Globe className="w-3.5 h-3.5" strokeWidth={2} />
+              <Globe className="w-4 h-4" strokeWidth={2} style={{ color: '#ffffff' }} />
               3D
             </button>
           </div>
 
-          <div className="flex items-center gap-2 px-3 py-1.5 bg-[#5a9a7a]/20 border border-[#5a9a7a]/30 rounded-sm">
-            <div className="w-1.5 h-1.5 rounded-full bg-[#5a9a7a] animate-pulse" />
-            <span className="text-xs text-[#5a9a7a] font-medium">System Running</span>
+          <div className="flex items-center gap-2 px-3 py-1.5 bg-[#1a4a3a] border border-[#2d5a4a] rounded-sm">
+            <div className="w-1.5 h-1.5 rounded-full bg-[#4ade80] animate-pulse" />
+            <span className="text-xs text-[#4ade80] font-semibold">System Running</span>
           </div>
         </div>
       );
@@ -585,91 +612,7 @@ export const DemoPage: React.FC = () => {
         />
       )}
 
-      {/* Header */}
-      <header className="h-14 bg-[#0f1621] border-b border-[#1a2332] px-6 flex items-center justify-between z-20">
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="w-8 h-8 bg-gradient-to-br from-[#0078d4] to-[#4a90e2] rounded-sm flex items-center justify-center shrink-0">
-            <Shield className="w-5 h-5 text-white" strokeWidth={2} />
-          </div>
-
-          <div className="min-w-0">
-                <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-cyan-300">
-                  Globot Shield
-                </h1>
-            <p className="text-xs text-white/40 truncate">
-              {origin?.name} → {destination?.name} · T+{currentTime.toFixed(0)}s · {scenarioPhase}
-            </p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-3 shrink-0">
-          {/* CoT Active Indicator */}
-          {isCotActive && (
-            <div className="flex items-center gap-2 px-3 py-1.5 bg-[#4a90e2]/20 border border-[#4a90e2]/30 rounded-sm animate-pulse">
-              <Brain className="w-3.5 h-3.5 text-[#4a90e2]" />
-              <span className="text-xs text-[#4a90e2] font-medium">CoT Active</span>
-            </div>
-          )}
-
-          {/* Change Route Button */}
-          <button
-            onClick={() => setIsChangingRoute(true)}
-            className="px-3 py-1.5 rounded-sm text-xs font-medium transition-all flex items-center gap-2 bg-[#0a0e1a] border border-[#1a2332] text-white/60 hover:text-white/90 hover:border-[#4a90e2]/50"
-          >
-            <RefreshCw className="w-3.5 h-3.5" strokeWidth={2} />
-            Change Route
-          </button>
-
-          {/* Users Home Button */}
-          <button
-            onClick={() => navigate('/usershome')}
-            className="px-3 py-1.5 rounded-sm text-xs font-medium transition-all flex items-center gap-2 bg-[#0a0e1a] border border-[#1a2332] text-white/60 hover:text-white/90 hover:border-blue-500/50"
-          >
-            <Home className="w-3.5 h-3.5" strokeWidth={2} />
-            Home
-          </button>
-
-          {/* 2D/3D Toggle */}
-          <div className="flex items-center gap-1 bg-[#0a0e1a] border border-[#1a2332] rounded-sm p-1">
-            <button
-              onClick={() => setIs3D(false)}
-              className={`px-3 py-1.5 rounded-sm text-xs font-medium transition-all flex items-center gap-2 ${
-                !is3D
-                  ? 'bg-[#4a90e2]/20 text-[#4a90e2] border border-[#4a90e2]/30'
-                  : 'text-white/40 hover:text-white/60'
-              }`}
-            >
-              <Map className="w-3.5 h-3.5" strokeWidth={2} />
-              2D
-            </button>
-            <button
-              onClick={() => setIs3D(true)}
-              className={`px-3 py-1.5 rounded-sm text-xs font-medium transition-all flex items-center gap-2 ${
-                is3D
-                  ? 'bg-[#4a90e2]/20 text-[#4a90e2] border border-[#4a90e2]/30'
-                  : 'text-white/40 hover:text-white/60'
-              }`}
-            >
-              <Globe className="w-3.5 h-3.5" strokeWidth={2} />
-              3D
-            </button>
-          </div>
-
-          {/* Admin Button */}
-          <button
-            onClick={() => navigate('/admin')}
-            className="px-3 py-1.5 rounded-sm text-xs font-medium transition-all flex items-center gap-2 bg-[#0a0e1a] border border-[#1a2332] text-white/60 hover:text-white/90 hover:border-red-500/50"
-          >
-            <Shield className="w-3.5 h-3.5" strokeWidth={2} />
-            Admin
-          </button>
-
-          <div className="flex items-center gap-2 px-3 py-1.5 bg-[#5a9a7a]/20 border border-[#5a9a7a]/30 rounded-sm">
-            <div className="w-1.5 h-1.5 rounded-full bg-[#5a9a7a] animate-pulse" />
-            <span className="text-xs text-[#5a9a7a] font-medium">System Running</span>
-          </div>
-        </div>
-      </header>
+      {/* Header is now provided by CommonHeader in App.jsx for unified design */}
 
       {/* Main content */}
       <div className="flex-1 flex overflow-hidden min-h-0">
@@ -765,6 +708,18 @@ export const DemoPage: React.FC = () => {
           </button>
 
           <div className={`flex-1 overflow-y-auto pr-2 pl-2 transition-opacity duration-200 ${isRightCollapsed ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
+            {/* Visual Risk Panel (NEW) */}
+            {(visualRiskAnalyzing || visualRiskAnalysis) && (
+              <div className="mb-3">
+                <VisualRiskPanel
+                  isAnalyzing={visualRiskAnalyzing}
+                  analysisSource={visualRiskSource}
+                  analysisLocation={visualRiskLocation}
+                  analysis={visualRiskAnalysis}
+                />
+              </div>
+            )}
+
             {/* Azure stack badges */}
             <AzureBadges />
 
