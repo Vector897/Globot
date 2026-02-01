@@ -8,6 +8,7 @@ from demo.cot_data import (
     get_execution_steps_for_demo,
     get_execution_summary_for_demo
 )
+from services.visual_risk_service import get_visual_risk_analyzer
 import logging
 from datetime import datetime
 
@@ -75,7 +76,47 @@ class CrisisAutoPlayController:
                 "phase": "detection",
                 "data": self.timeline["t1_black_swan"]
             })
-            await asyncio.sleep(3)
+            await asyncio.sleep(2)
+
+            # =====================================================
+            # Phase 1.5: Visual Risk Analysis (T+7s) - NEW!
+            # Demonstrates Gemini Vision multimodal capabilities
+            # =====================================================
+            logger.info("Demo Sequence: T1.5 - Visual Risk Analysis (Gemini Vision)")
+            
+            # Send visual analysis start event
+            await websocket.send_json({
+                "type": "VISUAL_RISK_START",
+                "timestamp": datetime.now().isoformat(),
+                "message": "Initiating satellite imagery analysis via Gemini Vision",
+                "source": "Google Static Maps API (Satellite)",
+                "location": "Suez Canal, Egypt (30.45°N, 32.35°E)"
+            })
+            await asyncio.sleep(1.0)
+            
+            # Call real Gemini Vision API with Satellite Image
+            # Coordinates for Suez Canal (Ever Given location approx)
+            try:
+                analyzer = get_visual_risk_analyzer()
+                result = await analyzer.analyze_image(
+                    coordinates=(30.45, 32.35) 
+                )
+                
+                # Send visual analysis result
+                await websocket.send_json({
+                    "type": "VISUAL_RISK_RESULT",
+                    "timestamp": datetime.now().isoformat(),
+                    "analysis": result.to_dict()
+                })
+            except Exception as e:
+                logger.error(f"Visual risk analysis fail in demo: {e}")
+                # Fallback purely handled by service, but if service crashes, we catch here
+                await websocket.send_json({
+                    "type": "ERROR",
+                    "timestamp": datetime.now().isoformat(),
+                    "message": "Visual analysis service temporarily unavailable"
+                })
+            await asyncio.sleep(1.5)
 
             # =====================================================
             # Phase 2: Chain-of-Thought Reasoning Chain (T+8s - T+42s)

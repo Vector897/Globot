@@ -1,6 +1,6 @@
 import React from 'react';
 import { SignedIn, SignedOut, UserButton, useClerk, useUser } from '@clerk/clerk-react';
-import { Shield, Menu as MenuIcon } from 'lucide-react';
+import { Shield, Menu as MenuIcon, Home, Settings } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Dropdown, MenuProps } from 'antd';
 import { useHeader } from '../context/HeaderContext';
@@ -80,6 +80,50 @@ export const CommonHeader: React.FC = () => {
                     </div>
                     {!isDemoPage && <h3 style={{ color: 'white', margin: 0, fontSize: '1.1rem', fontWeight: 600, whiteSpace: 'nowrap' }}>Globot AI</h3>}
                 </div>
+
+                {/* Navigation Links */}
+                <nav style={{ display: 'flex', alignItems: 'center', gap: '8px', marginLeft: '16px' }}>
+                        <button
+                            onClick={() => navigate('/usershome')}
+                            style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                background: location.pathname === '/usershome' ? '#0078d4' : '#1a2332',
+                                border: '1px solid #2d3a4f',
+                                color: 'white',
+                                padding: '8px 14px',
+                                borderRadius: '6px',
+                                cursor: 'pointer',
+                                fontSize: '14px',
+                                fontWeight: 600,
+                                transition: 'all 0.2s'
+                            }}
+                        >
+                            <Home style={{ width: '16px', height: '16px' }} />
+                            Home
+                        </button>
+                        <button
+                            onClick={() => navigate('/admin')}
+                                style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '6px',
+                                    background: location.pathname === '/admin' ? '#0078d4' : '#1a2332',
+                                    border: '1px solid #2d3a4f',
+                                    color: 'white',
+                                    padding: '8px 14px',
+                                    borderRadius: '6px',
+                                    cursor: 'pointer',
+                                    fontSize: '14px',
+                                    fontWeight: 600,
+                                    transition: 'all 0.2s'
+                                }}
+                            >
+                                <Settings style={{ width: '16px', height: '16px' }} />
+                                Admin
+                        </button>
+                    </nav>
 
                 {isDemoPage && (
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0 }}>

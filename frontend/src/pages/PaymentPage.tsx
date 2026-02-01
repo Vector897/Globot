@@ -243,89 +243,89 @@ export const PaymentPage: React.FC = () => {
   const features = [
     {
       icon: <Eye className="w-6 h-6" />,
-      title: 'Real-time Threat Detection',
-      description: 'Monitor 50+ global shipping lanes for geopolitical events, weather disruptions, and security threats.',
+      title: 'Visual Risk Intelligence',
+      description: 'Gemini Vision analyzes satellite imagery to detect port congestion, canal blockages, and container pile-ups in real-time.',
     },
     {
       icon: <Brain className="w-6 h-6" />,
-      title: 'Multi-Agent Risk Analysis',
-      description: '5 specialized AI agents collaborate to analyze risks from market, logistics, compliance, and financial perspectives.',
-    },
-    {
-      icon: <Ship className="w-6 h-6" />,
-      title: 'Autonomous Route Optimization',
-      description: 'AI-powered rerouting decisions executed in minutes, not days. Avoid crisis zones automatically.',
+      title: 'Multi-Agent Reasoning Engine',
+      description: '5 specialized AI agents collaborate: Market Sentinel, Compliance Manager, Risk Hedger, Route Optimizer, and Crisis Coordinator.',
     },
     {
       icon: <Scale className="w-6 h-6" />,
-      title: 'Adversarial Debate System',
-      description: 'Built-in red team testing prevents AI hallucinations. Every decision is challenged before execution.',
+      title: 'Long Document Compliance',
+      description: 'Analyze 500-page insurance policies and sanction lists using Gemini\'s 2M token context window for instant compliance verification.',
+    },
+    {
+      icon: <Ship className="w-6 h-6" />,
+      title: 'Dynamic Cost Calculation',
+      description: 'Automatically calculate rerouting fuel costs, freight rate changes, and total financial impact before making decisions.',
     },
   ];
 
   const useCases = [
     {
       icon: <AlertTriangle className="w-6 h-6 text-[#c94444]" />,
-      title: 'Geopolitical Crisis Response',
-      scenario: 'Vessel seized in Strait of Hormuz at 4:55 PM. Traditional response takes 3+ days.',
-      outcome: 'Globot reroutes via Cape of Good Hope in 3 minutes, saving $2.3M in cargo value',
+      title: 'Red Sea Crisis (Maersk Scenario)',
+      scenario: 'Houthi attacks disrupt Red Sea shipping. Traditional analysis: 3+ days.',
+      outcome: 'AI recommends Cape reroute in 3 min, calculates +$180K fuel cost vs $2.3M cargo risk',
     },
     {
       icon: <Cloud className="w-6 h-6 text-[#4a90e2]" />,
-      title: 'Extreme Weather Mitigation',
-      scenario: 'Category 4 hurricane approaching Gulf of Mexico shipping lane.',
-      outcome: 'Proactive rerouting 48 hours before impact, zero cargo delays',
+      title: 'Critical Material Tracking (Tesla Scenario)',
+      scenario: 'Cobalt shipment from DRC faces port worker strike. EV battery production at risk.',
+      outcome: 'Gemini Vision detects container backlog from satellite, triggers alternate supplier protocol',
     },
     {
       icon: <Anchor className="w-6 h-6 text-[#5a9a7a]" />,
-      title: 'Supply Chain Disruption Prevention',
-      scenario: 'Port congestion detected at Los Angeles, 15-day delay projected.',
-      outcome: 'Automatic diversion to Long Beach with pre-arranged customs clearance',
+      title: 'Suez Canal Blockage (Ever Given Type)',
+      scenario: 'Satellite imagery shows unusual vessel clustering at canal entrance.',
+      outcome: 'Early warning 6 hours before official announcement, proactive fleet diversion',
     },
   ];
 
   const pricingTiers = [
     {
-      name: 'Starter',
-      price: '$999',
-      period: '/month',
-      description: 'For small-to-medium freight forwarders',
-      features: [
-        '10 shipping routes monitoring',
-        'Real-time risk alerts',
-        'Basic dashboard access',
-        'Email notifications',
-        'Standard support',
-      ],
-      ctaText: 'Start Starter Plan',
-    },
-    {
-      name: 'Pro',
+      name: 'Growth',
       price: '$4,999',
       period: '/month',
-      description: 'For mid-size 3PL companies',
+      description: 'For regional logistics providers (Flexport-level)',
       features: [
-        'Unlimited route monitoring',
-        'Full API access',
-        'Multi-agent AI analysis',
-        'Custom alert rules',
+        '50 shipping routes monitoring',
+        'Gemini-powered risk alerts',
+        'Compliance document analysis',
+        'Trade sanction screening',
         'Priority support',
-        'Advanced analytics',
       ],
-      highlighted: true,
-      ctaText: 'Start Pro Trial',
+      ctaText: 'Start Growth Plan',
     },
     {
       name: 'Enterprise',
+      price: '$19,999',
+      period: '/month',
+      description: 'For Global 500 (Maersk, Tesla, Apple)',
+      features: [
+        'Unlimited route monitoring',
+        'Visual Risk satellite analysis',
+        '5-agent reasoning engine',
+        'Real-time financial hedging',
+        'Dedicated NOC integration',
+        '24/7 SLA guarantee',
+      ],
+      highlighted: true,
+      ctaText: 'Start Enterprise Trial',
+    },
+    {
+      name: 'Strategic',
       price: 'Custom',
-      description: 'For Global 500 shippers',
+      description: 'For commodity traders (Cargill, Glencore)',
       features: [
         'Private cloud deployment',
+        'Bloomberg/MarineTraffic API integration',
         'Custom AI agent training',
-        'White-glove onboarding',
-        'Dedicated success manager',
-        'SLA guarantees',
-        'Unlimited users',
+        'Geopolitical intelligence feed',
+        'Board-level reporting',
+        'Unlimited global coverage',
       ],
       ctaText: 'Contact Sales',
     },
@@ -346,24 +346,24 @@ export const PaymentPage: React.FC = () => {
           transition={{ duration: 0.8 }}
         >
           <div className="hero-badge">
-            <Shield className="w-4 h-4" />
-            <span>Powered by Microsoft Azure AI</span>
+            <Brain className="w-4 h-4" />
+            <span>Powered by Google Gemini 2.0</span>
           </div>
 
           <h1 className="hero-title">
             <span className="hero-title-gradient">Globot Shield</span>
             <br />
-            Trade with Confidence
+            Securing Global Lifelines
           </h1>
 
           <p className="hero-subtitle">
-            The AI guardian that protects your global supply chain from geopolitical storms,
-            extreme weather, and market disruptions — making decisions in{' '}
-            <span className="hero-highlight">3 minutes</span>, not 3 days.
+            Enterprise-grade AI that protects Fortune 500 supply chains from geopolitical crises,
+            using <span className="hero-highlight">satellite imagery analysis</span> and <span className="hero-highlight">real-time reasoning</span> — 
+            making decisions in 3 minutes, not 3 days.
           </p>
 
           <div className="hero-cta-group">
-            <button className="hero-cta-primary" onClick={() => handleTierSelect('Pro')}>
+            <button className="hero-cta-primary" onClick={() => handleTierSelect('Enterprise')}>
               <Zap className="w-5 h-5" />
               Start Free Trial
             </button>
@@ -398,12 +398,7 @@ export const PaymentPage: React.FC = () => {
         >
           <div className="hero-globe-wrapper">
             <div className="hero-globe-glow" />
-            <Globe className="hero-globe-icon" />
-            <div className="hero-orbiting-dots">
-              <div className="orbiting-dot dot-1" />
-              <div className="orbiting-dot dot-2" />
-              <div className="orbiting-dot dot-3" />
-            </div>
+            <img src="/Globot_logo.png" alt="Globot Logo" className="hero-globe-icon" style={{ width: '1550px', height: '1550px', objectFit: 'contain' }} />
           </div>
         </motion.div>
       </section>
@@ -546,12 +541,13 @@ export const PaymentPage: React.FC = () => {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
         >
-          <h2 className="cta-title">Ready to Protect Your Supply Chain?</h2>
+          <h2 className="cta-title">Securing the Lifelines of Global Economy</h2>
           <p className="cta-subtitle">
-            Join forward-thinking logistics companies using AI to stay ahead of disruptions
+            When Globot helps Maersk reroute during a Red Sea crisis, it means Kenya's grain won't run out, 
+            Europe's gas supply stays secure, and critical medical equipment reaches hospitals on time.
           </p>
           <div className="cta-buttons">
-            <button className="cta-btn-primary" onClick={() => handleTierSelect('Pro')}>
+            <button className="cta-btn-primary" onClick={() => handleTierSelect('Enterprise')}>
               <Zap className="w-5 h-5" />
               Start Free Trial
             </button>
@@ -571,7 +567,7 @@ export const PaymentPage: React.FC = () => {
             <span>Globot</span>
           </div>
           <p className="footer-tagline">Trading with Confidence</p>
-          <p className="footer-copyright">© 2026 Globot. Imagine Cup 2026 Project.</p>
+          <p className="footer-copyright">© 2026 Globot. Google Gemini 3 Hackathon Project.</p>
         </div>
       </footer>
 
