@@ -266,6 +266,19 @@ export function CrisisTimeline({ executionPhase = 'pending', onShipClick }: Cris
           ref={scrollRef}
           className="flex-1 space-y-2 overflow-y-auto scrollbar-thin scrollbar-thumb-[#1a2332] scrollbar-track-transparent pr-2"
         >
+          {/* Empty state when no events */}
+          {events.length === 0 && (
+            <div className="flex flex-col items-center justify-center h-full text-center py-8">
+              <div className="w-12 h-12 mb-3 rounded-full bg-[#1a2332] flex items-center justify-center">
+                <Info className="w-6 h-6 text-[#4a90e2]/40" />
+              </div>
+              <p className="text-xs text-white/50 mb-1">No events yet</p>
+              <p className="text-[10px] text-white/30">
+                System events will appear here as they occur
+              </p>
+            </div>
+          )}
+          
           <AnimatePresence>
             {events.map((event) => {
               const Icon = getEventIcon(event.type);
