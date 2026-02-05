@@ -24,10 +24,22 @@ import {
   Check,
   FileText,
   UserCog,
+  AlertTriangle,
 } from "lucide-react";
 import { ReasoningStep } from "./ReasoningStep";
 import { DebateView } from "./DebateView";
 import { ExecutionView } from "./ExecutionView";
+import {
+  AlertDialog,
+  AlertDialogTrigger,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogFooter,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogAction,
+  AlertDialogCancel,
+} from "./ui/alert-dialog";
 import "../styles/reasoning.css";
 
 // Type Definitions
@@ -446,27 +458,95 @@ export function AgentCoTPanel({
                             </p>
                           </div>
                           <div className="flex gap-2">
-                            <button
-                              onClick={() => onConfirmDecision("approve")}
-                              className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-[#5a9a7a] hover:bg-[#4a8a6a] text-white text-xs font-medium rounded-sm transition-colors"
-                            >
-                              <Check className="w-4 h-4" />
-                              Approve & Execute
-                            </button>
+                            {/* Approve with confirmation dialog */}
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <button
+                                  className="flex-1 flex items-center justify-center gap-2 py-2.5 min-h-[44px] bg-[#5a9a7a] hover:bg-[#4a8a6a] text-white text-xs font-medium rounded-sm transition-colors focus:outline-none focus:ring-2 focus:ring-[#5a9a7a]/50"
+                                >
+                                  <Check className="w-4 h-4" />
+                                  Approve & Execute
+                                </button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent className="bg-[#0f1621] border-[#1a2332] text-white">
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle className="flex items-center gap-2 text-white">
+                                    <AlertTriangle className="w-5 h-5 text-[#f5a623]" />
+                                    Confirm Route Change Execution
+                                  </AlertDialogTitle>
+                                  <AlertDialogDescription className="text-white/60">
+                                    This action will:
+                                    <ul className="mt-2 ml-4 space-y-1 list-disc text-white/70">
+                                      <li>Notify the vessel captain of the route change</li>
+                                      <li>Update shipping schedules and documentation</li>
+                                      <li>Trigger automated compliance checks</li>
+                                      <li>Send customer notifications with new ETA</li>
+                                    </ul>
+                                    <p className="mt-3 text-[#f5a623]">
+                                      This action cannot be easily undone once execution begins.
+                                    </p>
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel className="bg-[#1a2332] text-white/70 border-[#1a2332] hover:bg-[#252f42] hover:text-white">
+                                    Cancel
+                                  </AlertDialogCancel>
+                                  <AlertDialogAction 
+                                    onClick={() => onConfirmDecision("approve")}
+                                    className="bg-[#5a9a7a] hover:bg-[#4a8a6a] text-white"
+                                  >
+                                    <Check className="w-4 h-4 mr-2" />
+                                    Confirm & Execute
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                            
                             <button
                               onClick={() => onConfirmDecision("details")}
-                              className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-[#1a2332] hover:bg-[#252f42] text-white/70 text-xs font-medium rounded-sm transition-colors"
+                              className="flex-1 flex items-center justify-center gap-2 py-2.5 min-h-[44px] bg-[#1a2332] hover:bg-[#252f42] text-white/70 text-xs font-medium rounded-sm transition-colors focus:outline-none focus:ring-2 focus:ring-[#4a90e2]/50"
                             >
                               <FileText className="w-4 h-4" />
                               Details
                             </button>
-                            <button
-                              onClick={() => onConfirmDecision("manual")}
-                              className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-[#c75050] hover:bg-[#b74040] text-white text-xs font-medium rounded-sm transition-colors"
-                            >
-                              <UserCog className="w-4 h-4" />
-                              Override
-                            </button>
+                            
+                            {/* Override with confirmation dialog */}
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <button
+                                  className="flex-1 flex items-center justify-center gap-2 py-2.5 min-h-[44px] bg-[#c75050] hover:bg-[#b74040] text-white text-xs font-medium rounded-sm transition-colors focus:outline-none focus:ring-2 focus:ring-[#c75050]/50"
+                                >
+                                  <UserCog className="w-4 h-4" />
+                                  Override
+                                </button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent className="bg-[#0f1621] border-[#1a2332] text-white">
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle className="flex items-center gap-2 text-white">
+                                    <AlertTriangle className="w-5 h-5 text-[#c75050]" />
+                                    Manual Override
+                                  </AlertDialogTitle>
+                                  <AlertDialogDescription className="text-white/60">
+                                    You are about to override the AI recommendation.
+                                    <p className="mt-2 text-[#c75050]">
+                                      This will bypass the suggested route change and require manual decision-making.
+                                    </p>
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel className="bg-[#1a2332] text-white/70 border-[#1a2332] hover:bg-[#252f42] hover:text-white">
+                                    Cancel
+                                  </AlertDialogCancel>
+                                  <AlertDialogAction 
+                                    onClick={() => onConfirmDecision("manual")}
+                                    className="bg-[#c75050] hover:bg-[#b74040] text-white"
+                                  >
+                                    <UserCog className="w-4 h-4 mr-2" />
+                                    Confirm Override
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
                           </div>
                         </motion.div>
                       )}

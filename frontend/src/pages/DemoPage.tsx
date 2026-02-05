@@ -15,8 +15,17 @@ import { VisualRiskPanel } from '../components/VisualRiskPanel';
 import { Route, GlobalPort } from '../utils/routeCalculator';
 import { Ship } from '../utils/shipData';
 import { ShipDetailsCard } from '../components/ShipDetailsCard';
-import { Home, Globe, Map, RefreshCw, Shield, Brain, ChevronRight, ChevronLeft, ChevronUp, ChevronDown } from 'lucide-react';
+import { Home, Globe, Map, RefreshCw, Shield, Brain, ChevronRight, ChevronLeft, ChevronUp, ChevronDown, Keyboard, X } from 'lucide-react';
 import { useHeader } from '../context/HeaderContext';
+
+// Keyboard shortcuts configuration
+const KEYBOARD_SHORTCUTS = [
+  { key: 'v', action: 'Toggle 2D/3D view', label: 'V' },
+  { key: 'r', action: 'Focus route selector', label: 'R' },
+  { key: 'a', action: 'Toggle AI panel', label: 'A' },
+  { key: 'Escape', action: 'Close dialogs/panels', label: 'Esc' },
+  { key: '?', action: 'Show keyboard shortcuts', label: '?' },
+];
 
 import {
   MarketSentinelResponse,
@@ -147,6 +156,50 @@ export const DemoPage: React.FC = () => {
   const [visualRiskSource, setVisualRiskSource] = useState('');
   const [visualRiskLocation, setVisualRiskLocation] = useState('');
   const [visualRiskAnalysis, setVisualRiskAnalysis] = useState<any>(null);
+
+  // === Keyboard Shortcuts State ===
+  const [showKeyboardHelp, setShowKeyboardHelp] = useState(false);
+
+  // Keyboard shortcuts handler
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ignore if user is typing in an input
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+        return;
+      }
+
+      // Shift+? to show keyboard shortcuts
+      if (e.key === '?' || (e.shiftKey && e.key === '/')) {
+        e.preventDefault();
+        setShowKeyboardHelp(prev => !prev);
+        return;
+      }
+
+      // Escape to close panels/dialogs
+      if (e.key === 'Escape') {
+        setShowKeyboardHelp(false);
+        setSelectedShip(null);
+        return;
+      }
+
+      // V to toggle 2D/3D view
+      if (e.key === 'v' || e.key === 'V') {
+        e.preventDefault();
+        setIs3D(prev => !prev);
+        return;
+      }
+
+      // A to toggle AI/CoT panel
+      if (e.key === 'a' || e.key === 'A') {
+        e.preventDefault();
+        setIsCotActive(prev => !prev);
+        return;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   // === Resizable Right Sidebar ===
   const [sidebarWidth, setSidebarWidth] = useState(420);
@@ -761,6 +814,69 @@ export const DemoPage: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* Keyboard Shortcuts Help Modal */}
+      {showKeyboardHelp && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+          onClick={() => setShowKeyboardHelp(false)}
+        >
+          <div 
+            className="bg-[#0f1621] border border-[#1a2332] rounded-lg p-6 max-w-md w-full mx-4 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-[#4a90e2]/20 flex items-center justify-center">
+                  <Keyboard className="w-4 h-4 text-[#4a90e2]" />
+                </div>
+                <h2 className="text-lg font-semibold text-white">Keyboard Shortcuts</h2>
+              </div>
+              <button
+                onClick={() => setShowKeyboardHelp(false)}
+                className="w-8 h-8 rounded-lg bg-[#1a2332] hover:bg-[#252f42] flex items-center justify-center text-white/60 hover:text-white transition-colors"
+                aria-label="Close keyboard shortcuts"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            
+            <div className="space-y-3">
+              {KEYBOARD_SHORTCUTS.map((shortcut, index) => (
+                <div 
+                  key={shortcut.key}
+                  className="flex items-center justify-between py-2 border-b border-[#1a2332] last:border-0"
+                >
+                  <span className="text-sm text-white/70">{shortcut.action}</span>
+                  <kbd className="px-2 py-1 bg-[#1a2332] rounded text-xs font-mono text-[#4a90e2] border border-[#2a3342]">
+                    {shortcut.label}
+                  </kbd>
+                </div>
+              ))}
+            </div>
+            
+            <p className="mt-4 text-xs text-white/40 text-center">
+              Press <kbd className="px-1 py-0.5 bg-[#1a2332] rounded text-[10px] font-mono">?</kbd> anytime to show this help
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Keyboard Shortcuts Hint - shows briefly on page load */}
+      {demoStarted && (
+        <div className="fixed bottom-4 right-4 z-40">
+          <button
+            onClick={() => setShowKeyboardHelp(true)}
+            className="flex items-center gap-2 px-3 py-2 bg-[#1a2332]/80 hover:bg-[#252f42] border border-[#2a3342] rounded-lg text-xs text-white/60 hover:text-white transition-colors backdrop-blur-sm"
+            aria-label="Show keyboard shortcuts"
+          >
+            <Keyboard className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Press</span>
+            <kbd className="px-1.5 py-0.5 bg-[#0f1621] rounded text-[10px] font-mono">?</kbd>
+            <span className="hidden sm:inline">for shortcuts</span>
+          </button>
+        </div>
+      )}
     </div>
   );
 };
