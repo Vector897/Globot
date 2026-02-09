@@ -22,6 +22,8 @@ pydantic_core==2.33.2
 # AI/LLM
 crewai==1.7.2
 openai==1.83.0
+langchain-google-genai
+google-generativeai
 
 # Security
 python-jose[cryptography]==3.3.0

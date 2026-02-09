@@ -34,7 +34,7 @@
 展示了由 5 个专业 AI Agent 组成的团队协同工作：
 
 - **🔭 市场哨兵 (Market Sentinel)**: 监控路透社/彭博社的地缘政治信号 (Mock API 支持多场景：红海危机、港口拥堵等)。
-- **🛡️ 风险对冲专家 (Risk Hedger)**: 计算财务风险敞口，**动态计算改道后的燃油成本 (+$180K) 和运费波动**。
+- **🛡️ 风险对冲专家 (Financial Hedge Agent)**: 实时分析燃料价格、汇率、运价风险，提供智能对冲策略（期货、期权、远期合约），支持正常与危机时刻的多维度风险管理。动态计算改道后的燃油成本 (+$180K) 和运费波动。
 - **🚢 物流指挥官 (Logistics Orchestrator)**: 重新规划航线以避开冲突区域。
 - **📋 合规经理 (Compliance Manager)**: 使用 **Gemini 2M Token Context Window** 分析 500 页保险条款和制裁名单。
 - **⚖️ 对抗性辩论 (Adversarial Debate)**: 对决策进行红队测试，防止幻觉。
@@ -156,6 +156,54 @@ _前端运行在 `http://localhost:5173`_
 - `updates/README.md`: 详细的演示操作步骤说明（新用户必读）。
 - `task.md`: 项目开发任务清单。
 - `updates/README.md`: 服务启动与故障排查速查表。
+
+## 💰 Financial Hedging System (NEW)
+
+Globot now includes a comprehensive financial risk hedging system for managing:
+
+### Risk Categories
+- **燃料价格风险 (Fuel Price Risk)**: 使用期货、期权、掉期对冲船用燃料价格波动
+- **汇率风险 (Currency Risk)**: 通过远期合约、货币掉期锁定汇率
+- **运价波动 (Freight Rate Risk)**: 长期租船合同与现货市场组合策略
+
+### Features
+- ✅ AI-powered risk assessment with Value at Risk (VaR) calculations
+- ✅ Automated hedging strategy recommendations (normal & crisis modes)
+- ✅ Real-time market data simulation
+- ✅ Crisis detection and emergency hedging protocols
+- ✅ Multi-instrument portfolio optimization
+
+### API Endpoints
+```bash
+# Health check
+GET http://localhost:8000/api/hedge/health
+
+# Get market data
+GET http://localhost:8000/api/hedge/market-data
+
+# Assess risk exposure
+POST http://localhost:8000/api/hedge/assess-risk
+
+# Get hedging recommendations
+POST http://localhost:8000/api/hedge/recommend
+
+# Activate crisis hedging
+POST http://localhost:8000/api/hedge/crisis-activate
+
+# Generate executive report
+POST http://localhost:8000/api/hedge/report
+```
+
+### Documentation
+- **API Documentation**: `backend/docs/HEDGING_API.md`
+- **Strategy Guide**: `backend/docs/HEDGING_STRATEGY_GUIDE.md`
+- **Claude Skill**: `backend/claude_skill/financial_hedging/SKILL.md`
+
+### Quick Test
+```bash
+cd backend
+python test_hedging_system.py
+```
 
 ---
 

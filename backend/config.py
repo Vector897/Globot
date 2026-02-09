@@ -53,6 +53,10 @@ class Settings(BaseSettings):
 
     # CrewAI Feature Flags
     document_analysis_use_crewai: bool = True
+    
+    # Clerk配置
+    clerk_issuer_url: Optional[str] = None
+    admin_whitelist: str = "thaumatext@gmail.com"
 
     # 系统配置
     log_level: str = "INFO"

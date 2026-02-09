@@ -15,7 +15,7 @@ from dotenv import load_dotenv
 # 加载环境变量
 load_dotenv()
 
-# 导入模块
+# Import modules
 from database import get_db, Base, engine
 from models import Customer, Conversation, Message, CustomerCategory, MessageSender, Handoff, ConversationStatus
 # from core.chatbot import get_chatbot
@@ -23,11 +23,14 @@ from models import Customer, Conversation, Message, CustomerCategory, MessageSen
 # from core.handoff_manager import get_handoff_manager
 from core.crew_orchestrator import CrewAIOrchestrator, get_crew_orchestrator
 from core.crew_stock_research import build_company_research_crew
+from core.hedge_agent import get_hedge_agent
+from services.market_data_service import get_market_data_service
 from core.clerk_auth import get_current_user, User
 
 from api.v2.demo_routes import router as demo_router
 from api.v2.market_sentinel_routes import router as market_sentinel_router
 from api.v2.maritime_routes import router as maritime_router
+from api.v2.hedge_routes import router as hedge_router
 from api.v2.visual_risk_routes import router as visual_risk_router
 
 
@@ -48,6 +51,7 @@ app = FastAPI(
 app.include_router(demo_router)
 app.include_router(market_sentinel_router)
 app.include_router(maritime_router)
+app.include_router(hedge_router)
 app.include_router(visual_risk_router)
 from api.analytics import router as analytics_router
 app.include_router(analytics_router)
@@ -169,6 +173,19 @@ class CompanyResearchRequest(BaseModel):
     company: str
     question: str
     ticker: Optional[str] = None
+
+class HedgeOperationParams(BaseModel):
+    """Operation parameters for hedging calculations"""
+    fuel_consumption_monthly: float = 1000  # tons
+    revenue_foreign_monthly: float = 1_800_000  # EUR
+    fx_pair: str = "EUR"
+    monthly_voyages: int = 4
+    current_route: str = "Shanghai → Rotterdam"
+
+class CrisisActivationRequest(BaseModel):
+    """Request to activate crisis hedging mode"""
+    crisis_scenario: str  # 'red_sea', 'fuel_spike', 'currency_crisis'
+    operation_params: HedgeOperationParams
 
 
 # ========== API路由 ==========

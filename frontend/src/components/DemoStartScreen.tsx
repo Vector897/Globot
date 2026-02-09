@@ -104,8 +104,7 @@ export function DemoStartScreen({ onStart, currentOrigin, currentDestination, is
                 placeholder="Search port..."
                 value={originSearch}
                 onChange={(e) => setOriginSearch(e.target.value)}
-                className="w-full pl-9 pr-3 py-2 bg-[#0a0e1a] border border-[#1a2332] rounded-sm text-sm placeholder-white/30 focus:outline-none focus:border-[#4a90e2]/50"
-                style={{ color: 'rgba(255,255,255,0.9)' }}
+                className="w-full pl-9 pr-3 py-2 bg-[#0a0e1a] border border-[#1a2332] rounded-sm text-sm text-white/80 placeholder-white/30 focus:outline-none focus:border-[#4a90e2]/50"
               />
             </div>
             <div className="space-y-1.5 max-h-[260px] overflow-y-auto scrollbar-thin scrollbar-thumb-[#1a2332] scrollbar-track-transparent pr-2 box-border">
@@ -148,8 +147,7 @@ export function DemoStartScreen({ onStart, currentOrigin, currentDestination, is
                 placeholder="Search port..."
                 value={destSearch}
                 onChange={(e) => setDestSearch(e.target.value)}
-                className="w-full pl-9 pr-3 py-2 bg-[#0a0e1a] border border-[#1a2332] rounded-sm text-sm placeholder-white/30 focus:outline-none focus:border-[#c94444]/50"
-                style={{ color: 'rgba(255,255,255,0.9)' }}
+                className="w-full pl-9 pr-3 py-2 bg-[#0a0e1a] border border-[#1a2332] rounded-sm text-sm text-white/80 placeholder-white/30 focus:outline-none focus:border-[#c94444]/50"
               />
             </div>
             <div className="space-y-1.5 max-h-[260px] overflow-y-auto scrollbar-thin scrollbar-thumb-[#1a2332] scrollbar-track-transparent pr-2 box-border">
