@@ -30,8 +30,8 @@ numpy>=1.26.0
 
 # AI/LLM - Core
 crewai==1.7.2
-openai==1.83.0
-litellm==1.80.11
+openai
+litellm
 google-generativeai==0.8.6
 
 # AI/LLM - LangChain (loosened for resolution)
