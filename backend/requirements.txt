@@ -3,42 +3,67 @@ fastapi==0.115.6
 uvicorn[standard]==0.34.3
 starlette==0.41.3
 sse-starlette==3.0.3
-pydantic==2.11.10
-pydantic-settings==2.10.1
-pydantic_core==2.33.2
-anyio>=3.7.1,<5
-numpy>=1.26.0
 python-multipart==0.0.21
-aiofiles==24.1.0
 
-# Database & Vector Store
-SQLAlchemy==2.0.23
-psycopg2-binary==2.9.11
-alembic==1.13.1
-chromadb==0.6.3
-pysqlite3-binary==0.5.4
-
-# AI/LLM
-crewai==1.7.2
-openai==1.83.0
-langchain-google-genai
-google-generativeai
-langchain==0.3.17
-langchain-community==0.3.16
-langchain-chroma==0.2.1
-langchain-text-splitters==0.3.5
-sentence-transformers==3.4.1
-rank-bm25==0.2.2
-
-# Security & Auth
-python-jose[cryptography]==3.3.0
-PyJWT>=2.9.0,<3.0.0
-python-dotenv==1.1.1
-websockets==16.0
-
-# Utilities
+# Async HTTP (required by CrewAI)
+aiohttp>=3.9.0
 httpx==0.28.1
 httpx-sse==0.4.3
 requests==2.32.5
-pypdf==5.2.0
+
+# Database
+SQLAlchemy==2.0.46
+psycopg2-binary==2.9.11
+alembic==1.13.1
+
+# Vector Database
+chromadb==1.1.1
+
+# Data Validation
+pydantic>=2.10.0
+pydantic-settings>=2.6.0
+anyio>=3.7.1,<5
+numpy>=1.26.0
+
+# AI/LLM - Core
+crewai==1.7.2
+openai==1.83.0
+litellm==1.80.11
+
+# AI/LLM - Google
+google-generativeai==0.8.6
+google-genai==1.60.0
+langchain-google-genai==4.2.0
+google-api-python-client==2.187.0
+google-auth==2.48.0
+
+# AI/LLM - LangChain
+langchain>=1.0.0
+langchain-core>=1.0.0
+langchain-community>=0.4.0
+langchain-chroma>=1.0.0
+langchain-text-splitters>=1.0.0
+
+# AI/LLM - Embeddings
+sentence-transformers>=2.3.0
+transformers>=4.40.0
+tokenizers>=0.20.0
+
+# gRPC (required by google-generativeai)
+grpcio>=1.60.0
+grpcio-status>=1.60.0
+
+# Security
+python-jose[cryptography]==3.3.0
+python-dotenv==1.1.1
+
+# WebSockets
+websockets>=15.0
+
+# PDF/Document Processing
+pypdf>=4.0.0
+pdfplumber>=0.11.0
+python-docx>=1.0.0
+
+# Platform-specific
 uvloop==0.22.1; platform_system != "Windows"
