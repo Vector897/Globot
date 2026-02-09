@@ -28,6 +28,13 @@ const KEYBOARD_SHORTCUTS = [
   { key: '?', action: 'Show keyboard shortcuts', label: '?' },
 ];
 
+const SIDEBAR_TAB_THEME = {
+  intelligence: { accent: '#4a90e2', activeBg: 'rgba(74, 144, 226, 0.16)', border: 'rgba(74, 144, 226, 0.34)' },
+  agents: { accent: '#2dd4bf', activeBg: 'rgba(45, 212, 191, 0.16)', border: 'rgba(45, 212, 191, 0.34)' },
+  risk: { accent: '#c084fc', activeBg: 'rgba(192, 132, 252, 0.16)', border: 'rgba(192, 132, 252, 0.34)' },
+  compliance: { accent: '#f59e0b', activeBg: 'rgba(245, 158, 11, 0.16)', border: 'rgba(245, 158, 11, 0.34)' },
+} as const;
+
 import {
   MarketSentinelResponse,
   runSimpleAnalysis,
@@ -569,12 +576,18 @@ export const DemoPage: React.FC = () => {
 
     try {
       let response: MarketSentinelResponse;
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/05d36e09-cd94-4f96-af55-b3946c76739f',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({runId:'pre-fix',hypothesisId:'H1',location:'frontend/src/pages/DemoPage.tsx:runMarketSentinel',message:'Market Sentinel run started',data:{originName:origin?.name ?? null,destinationName:destination?.name ?? null,hasSelectedRoute:Boolean(selectedRoute),selectedRouteName:selectedRoute?.name ?? null},timestamp:Date.now()})}).catch(()=>{});
+      // #endregion
 
       // If we have origin/destination, run with lane watchlist
       if (origin && destination) {
         // Extract port codes from names (e.g., "Shanghai" -> "CNSHA")
         const originCode = getPortCode(origin.name);
         const destinationCode = getPortCode(destination.name);
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/05d36e09-cd94-4f96-af55-b3946c76739f',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({runId:'pre-fix',hypothesisId:'H1',location:'frontend/src/pages/DemoPage.tsx:runMarketSentinel',message:'Port code resolution result',data:{originName:origin.name,destinationName:destination.name,originCode,destinationCode},timestamp:Date.now()})}).catch(()=>{});
+        // #endregion
 
         if (originCode && destinationCode) {
           // Include route waypoint context if a route is selected
@@ -586,16 +599,28 @@ export const DemoPage: React.FC = () => {
             });
           }
           const params = createLaneWatchlist(originCode, destinationCode, ['general cargo'], routeEntities);
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/05d36e09-cd94-4f96-af55-b3946c76739f',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({runId:'pre-fix',hypothesisId:'H2',location:'frontend/src/pages/DemoPage.tsx:runMarketSentinel',message:'Calling runAnalysis with lane watchlist',data:{lanes:params.watchlist.lanes,entities:params.watchlist.entities},timestamp:Date.now()})}).catch(()=>{});
+          // #endregion
           response = await runAnalysis(params);
         } else {
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/05d36e09-cd94-4f96-af55-b3946c76739f',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({runId:'pre-fix',hypothesisId:'H1',location:'frontend/src/pages/DemoPage.tsx:runMarketSentinel',message:'Falling back to runSimpleAnalysis because port code missing',data:{originName:origin.name,destinationName:destination.name,originCode,destinationCode},timestamp:Date.now()})}).catch(()=>{});
+          // #endregion
           response = await runSimpleAnalysis();
         }
       } else {
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/05d36e09-cd94-4f96-af55-b3946c76739f',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({runId:'pre-fix',hypothesisId:'H3',location:'frontend/src/pages/DemoPage.tsx:runMarketSentinel',message:'Falling back to runSimpleAnalysis because origin/destination missing',data:{hasOrigin:Boolean(origin),hasDestination:Boolean(destination)},timestamp:Date.now()})}).catch(()=>{});
+        // #endregion
         response = await runSimpleAnalysis();
       }
 
       clearTimeout(timeoutId); // Clear safety timeout on success
       setMarketSentinelData(response);
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/05d36e09-cd94-4f96-af55-b3946c76739f',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({runId:'pre-fix',hypothesisId:'H4',location:'frontend/src/pages/DemoPage.tsx:runMarketSentinel',message:'Market Sentinel response received',data:{summary:response.signal_packet?.summary ?? null,severity:response.signal_packet?.severity ?? null,affectedLanes:response.signal_packet?.affected_lanes ?? []},timestamp:Date.now()})}).catch(()=>{});
+      // #endregion
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
       setMarketSentinelError(errorMessage);
@@ -878,7 +903,7 @@ export const DemoPage: React.FC = () => {
           <div className={`flex-1 flex flex-col overflow-hidden transition-opacity duration-200 ${isRightCollapsed ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
 
             {/* Tab Bar */}
-            <div className="flex border-b border-[#1a2332] shrink-0">
+            <div className="flex border-b border-[#1a2332] shrink-0 bg-[#0d1422]">
               {([
                 { id: 'intelligence' as const, label: 'AI', icon: <Brain className="w-3.5 h-3.5" /> },
                 { id: 'agents' as const, label: 'Agents', icon: <Activity className="w-3.5 h-3.5" /> },
@@ -888,14 +913,20 @@ export const DemoPage: React.FC = () => {
                 <button
                   key={tab.id}
                   onClick={() => setSidebarTab(tab.id)}
-                  className={`flex-1 flex items-center justify-center gap-1 px-1 py-2 text-[11px] font-medium transition-colors relative ${
-                    sidebarTab === tab.id ? 'text-white' : 'text-white/35 hover:text-white/60'
-                  }`}
+                  className="flex-1 flex items-center justify-center gap-1 px-1 py-2 text-[11px] font-medium transition-all relative"
+                  style={{
+                    color: sidebarTab === tab.id ? '#ffffff' : 'rgba(255, 255, 255, 0.45)',
+                    background: sidebarTab === tab.id ? SIDEBAR_TAB_THEME[tab.id].activeBg : 'transparent',
+                    boxShadow: sidebarTab === tab.id ? `inset 0 0 0 1px ${SIDEBAR_TAB_THEME[tab.id].border}` : 'none'
+                  }}
                 >
                   {tab.icon}
                   <span>{tab.label}</span>
                   {sidebarTab === tab.id && (
-                    <div className="absolute bottom-0 inset-x-2 h-[2px] bg-[#4a90e2] rounded-full" />
+                    <div
+                      className="absolute bottom-0 inset-x-2 h-[2px] rounded-full"
+                      style={{ background: SIDEBAR_TAB_THEME[tab.id].accent }}
+                    />
                   )}
                 </button>
               ))}
@@ -957,6 +988,15 @@ export const DemoPage: React.FC = () => {
               )}
               {sidebarTab === 'compliance' && (
                 <div className="p-3">
+                  <div className="mb-3 flex items-center justify-between rounded-sm border border-[#4c3a15] bg-[#1f1a12] px-3 py-2">
+                    <div className="flex items-center gap-2">
+                      <Shield className="h-3.5 w-3.5 text-[#f59e0b]" />
+                      <span className="text-xs font-semibold tracking-wide text-[#fbbf24]">Compliance Check</span>
+                    </div>
+                    <div className="rounded-full border border-[#3f3420] bg-[#2b2418] px-2 py-0.5 text-[10px] font-medium text-[#fde68a]">
+                      Policy Guard
+                    </div>
+                  </div>
                   <CompliancePanel
                     originPort={origin}
                     destinationPort={destination}
