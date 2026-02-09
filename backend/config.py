@@ -16,7 +16,7 @@ class Settings(BaseSettings):
     )
     
     # 数据库
-    database_url: str = "postgresql://user:password@localhost:5432/dji_sales_mvp"
+    database_url: str = "sqlite:///./dji_sales_mvp.db"
     
     # LLM选择: ollama 或 openai
     llm_provider: str = "ollama"

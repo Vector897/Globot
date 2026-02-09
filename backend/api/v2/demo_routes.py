@@ -3,6 +3,8 @@ from demo.autoplay_controller import CrisisAutoPlayController
 import uuid
 import logging
 import asyncio
+from pydantic import BaseModel
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -12,16 +14,26 @@ router = APIRouter(prefix="/api/v2/demo", tags=["Demo"])
 # demo_id -> controller_instance
 active_sessions = {}
 
+class DemoStartRequest(BaseModel):
+    scenario: str = "crisis_455pm"
+    origin_port: Optional[str] = None
+    destination_port: Optional[str] = None
+
 @router.post("/start")
-async def start_demo(scenario: str = "crisis_455pm"):
+async def start_demo(request: DemoStartRequest):
     """
     启动Demo
     返回 demo_id 和 WebSocket URL
     """
     demo_id = str(uuid.uuid4())
-    logger.info(f"Starting demo session: {demo_id} for scenario: {scenario}")
+    logger.info(f"Starting demo session: {demo_id} for scenario: {request.scenario} from {request.origin_port} to {request.destination_port}")
     
-    controller = CrisisAutoPlayController()
+    # Check if we should use real Gemini analysis
+    if request.origin_port and request.destination_port and request.scenario != "crisis_455pm":
+        from demo.realtime_controller import RealTimeCrisisController
+        controller = RealTimeCrisisController(request.origin_port, request.destination_port)
+    else:
+        controller = CrisisAutoPlayController()
     active_sessions[demo_id] = controller
 
     return {

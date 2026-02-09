@@ -6,11 +6,11 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { 
-  AlertTriangle, 
-  TrendingUp, 
-  Package, 
-  Shield, 
+import {
+  AlertTriangle,
+  TrendingUp,
+  Package,
+  Shield,
   GitBranch,
   Clock,
   Zap,
@@ -65,11 +65,11 @@ interface ReasoningStepProps {
 export function ReasoningStep({
   stepId,
   agentId,
-  action,
-  title,
-  content,
-  confidence,
-  azureService,
+  action = 'analyze',
+  title = 'Agent Thinking',
+  content = '',
+  confidence = 0.9,
+  azureService = 'Gemini',
   sources = [],
   durationMs = 0,
   isActive = false,
@@ -77,17 +77,17 @@ export function ReasoningStep({
   showTypewriter = false,
 }: ReasoningStepProps) {
   const [displayedContent, setDisplayedContent] = useState(showTypewriter ? '' : content);
-  
+
   const agentConfig = AGENT_CONFIG[agentId] || AGENT_CONFIG.market_sentinel;
   const Icon = agentConfig.icon;
-  
+
   // Typewriter effect
   useEffect(() => {
     if (!showTypewriter || !isActive) {
       if (!showTypewriter) setDisplayedContent(content);
       return;
     }
-    
+
     let animationFrameId: number;
     let startTime: number | null = null;
     const charDelay = 30; // 30ms per character
@@ -106,7 +106,7 @@ export function ReasoningStep({
     };
 
     animationFrameId = requestAnimationFrame(animate);
-    
+
     return () => {
       if (animationFrameId) cancelAnimationFrame(animationFrameId);
     };
@@ -125,13 +125,12 @@ export function ReasoningStep({
       initial={{ opacity: 0, y: 10, scale: 0.98 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       transition={{ duration: 0.3 }}
-      className={`relative bg-[#0f1621] border rounded-sm p-4 overflow-hidden ${
-        isActive 
-          ? 'border-[#4a90e2]/50 shadow-lg shadow-[#4a90e2]/10' 
-          : isComplete 
-            ? 'border-[#5a9a7a]/30' 
-            : 'border-[#1a2332]'
-      }`}
+      className={`relative bg-[#0f1621] border rounded-sm p-4 overflow-hidden ${isActive
+        ? 'border-[#4a90e2]/50 shadow-lg shadow-[#4a90e2]/10'
+        : isComplete
+          ? 'border-[#5a9a7a]/30'
+          : 'border-[#1a2332]'
+        }`}
     >
       {/* Active indicator glow */}
       {isActive && (
@@ -174,7 +173,7 @@ export function ReasoningStep({
                   border: `1px solid ${agentConfig.color}40`,
                 }}
               >
-                {ACTION_LABELS[action] || action.toUpperCase()}
+                {ACTION_LABELS[action] || (action ? action.toUpperCase() : 'THINKING')}
               </span>
             </div>
             <p className="text-[11px] text-white/40">{agentConfig.name}</p>
@@ -206,7 +205,7 @@ export function ReasoningStep({
                 {(confidence * 100).toFixed(0)}%
               </span>
             </div>
-            
+
             {/* Duration */}
             {durationMs > 0 && (
               <div className="flex items-center gap-1 text-white/30">
