@@ -42,3 +42,12 @@ httpx-sse==0.4.3
 requests==2.32.5
 pypdf==5.2.0
 uvloop==0.22.1; platform_system != "Windows"
+
+#langchain and transformers dependencies
+transformers==4.31.0
+sentence-transformers==2.3.0
+langchain==0.0.208
+langchain-chroma==0.0.208
+chromadb==0.3.24
+
+
