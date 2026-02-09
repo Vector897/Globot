@@ -11,11 +11,12 @@ import { AzureBadges } from '../components/AzureBadges';
 import { AgentWorkflow } from '../components/AgentWorkflow';
 import { AgentCoTPanel } from '../components/AgentCoTPanel';
 import { VisualRiskPanel } from '../components/VisualRiskPanel';
+import { CompliancePanel } from '../components/CompliancePanel';
 
-import { Route, GlobalPort } from '../utils/routeCalculator';
+import { Route, GlobalPort, calculateRoutes } from '../utils/routeCalculator';
 import { Ship } from '../utils/shipData';
 import { ShipDetailsCard } from '../components/ShipDetailsCard';
-import { Home, Globe, Map, RefreshCw, Shield, Brain, ChevronRight, ChevronLeft, ChevronUp, ChevronDown, Keyboard, X } from 'lucide-react';
+import { Home, Globe, Map, RefreshCw, Shield, Brain, ChevronRight, ChevronLeft, ChevronUp, ChevronDown, Keyboard, X, Activity, Eye } from 'lucide-react';
 import { useHeader } from '../context/HeaderContext';
 
 // Keyboard shortcuts configuration
@@ -27,12 +28,31 @@ const KEYBOARD_SHORTCUTS = [
   { key: '?', action: 'Show keyboard shortcuts', label: '?' },
 ];
 
+const SIDEBAR_TAB_THEME = {
+  intelligence: { accent: '#4a90e2', activeBg: 'rgba(74, 144, 226, 0.16)', border: 'rgba(74, 144, 226, 0.34)' },
+  agents: { accent: '#2dd4bf', activeBg: 'rgba(45, 212, 191, 0.16)', border: 'rgba(45, 212, 191, 0.34)' },
+  risk: { accent: '#c084fc', activeBg: 'rgba(192, 132, 252, 0.16)', border: 'rgba(192, 132, 252, 0.34)' },
+  compliance: { accent: '#f59e0b', activeBg: 'rgba(245, 158, 11, 0.16)', border: 'rgba(245, 158, 11, 0.34)' },
+} as const;
+
 import {
   MarketSentinelResponse,
   runSimpleAnalysis,
   runAnalysis,
   createLaneWatchlist
 } from '../services/marketSentinel';
+
+import {
+  RiskAssessment,
+  HedgeRecommendation,
+  assessRisk,
+  recommendStrategy,
+  DEFAULT_OPERATION_PARAMS,
+} from '../services/hedgeApi';
+
+import {
+  getDemoAnalysis,
+} from '../services/visualRiskApi';
 
 // CoT Type Definitions
 interface RAGSource {
@@ -135,6 +155,12 @@ export const DemoPage: React.FC = () => {
   const [marketSentinelLoading, setMarketSentinelLoading] = useState(false);
   const [marketSentinelError, setMarketSentinelError] = useState<string | null>(null);
 
+  // === Risk Hedger State ===
+  const [hedgeRiskData, setHedgeRiskData] = useState<RiskAssessment | null>(null);
+  const [hedgeRecommendation, setHedgeRecommendation] = useState<HedgeRecommendation | null>(null);
+  const [hedgeLoading, setHedgeLoading] = useState(false);
+  const [hedgeError, setHedgeError] = useState<string | null>(null);
+
   // === CoT State Management ===
   const [cotSteps, setCotSteps] = useState<CoTStep[]>([]);
   const [activeStepIndex, setActiveStepIndex] = useState(-1);
@@ -159,6 +185,9 @@ export const DemoPage: React.FC = () => {
 
   // === Keyboard Shortcuts State ===
   const [showKeyboardHelp, setShowKeyboardHelp] = useState(false);
+
+  // === Sidebar Tab State ===
+  const [sidebarTab, setSidebarTab] = useState<'intelligence' | 'agents' | 'risk' | 'compliance'>('intelligence');
 
   // Keyboard shortcuts handler
   useEffect(() => {
@@ -469,8 +498,15 @@ export const DemoPage: React.FC = () => {
     // ... (rest of reset logic)
     setIsChangingRoute(false);
 
-    setRoutes([]);
-    setSelectedRoute(null);
+    // Calculate dynamic routes immediately
+    const newRoutes = calculateRoutes(originPort.coordinates, destinationPort.coordinates);
+    setRoutes(newRoutes);
+    // Select the first route (usually fastest) by default
+    if (newRoutes.length > 0) {
+      setSelectedRoute(newRoutes[0]);
+    } else {
+      setSelectedRoute(null);
+    }
 
     // Reset CoT state
     setCotSteps([]);
@@ -481,6 +517,12 @@ export const DemoPage: React.FC = () => {
     setFinalDecision(null);
     setIsCotActive(false);
     setSelectedShip(null);
+
+    // Reset Hedge state
+    setHedgeRiskData(null);
+    setHedgeRecommendation(null);
+    setHedgeLoading(false);
+    setHedgeError(null);
 
     // Reset Execution state (NEW)
     setExecutionSteps([]);
@@ -534,25 +576,51 @@ export const DemoPage: React.FC = () => {
 
     try {
       let response: MarketSentinelResponse;
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/05d36e09-cd94-4f96-af55-b3946c76739f',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({runId:'pre-fix',hypothesisId:'H1',location:'frontend/src/pages/DemoPage.tsx:runMarketSentinel',message:'Market Sentinel run started',data:{originName:origin?.name ?? null,destinationName:destination?.name ?? null,hasSelectedRoute:Boolean(selectedRoute),selectedRouteName:selectedRoute?.name ?? null},timestamp:Date.now()})}).catch(()=>{});
+      // #endregion
 
       // If we have origin/destination, run with lane watchlist
       if (origin && destination) {
         // Extract port codes from names (e.g., "Shanghai" -> "CNSHA")
         const originCode = getPortCode(origin.name);
         const destinationCode = getPortCode(destination.name);
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/05d36e09-cd94-4f96-af55-b3946c76739f',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({runId:'pre-fix',hypothesisId:'H1',location:'frontend/src/pages/DemoPage.tsx:runMarketSentinel',message:'Port code resolution result',data:{originName:origin.name,destinationName:destination.name,originCode,destinationCode},timestamp:Date.now()})}).catch(()=>{});
+        // #endregion
 
         if (originCode && destinationCode) {
-          const params = createLaneWatchlist(originCode, destinationCode);
+          // Include route waypoint context if a route is selected
+          const routeEntities: string[] = [];
+          if (selectedRoute?.waypointNames) {
+            selectedRoute.waypointNames.forEach(wp => {
+              const code = getPortCode(wp);
+              if (code) routeEntities.push(`Port of ${wp}`);
+            });
+          }
+          const params = createLaneWatchlist(originCode, destinationCode, ['general cargo'], routeEntities);
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/05d36e09-cd94-4f96-af55-b3946c76739f',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({runId:'pre-fix',hypothesisId:'H2',location:'frontend/src/pages/DemoPage.tsx:runMarketSentinel',message:'Calling runAnalysis with lane watchlist',data:{lanes:params.watchlist.lanes,entities:params.watchlist.entities},timestamp:Date.now()})}).catch(()=>{});
+          // #endregion
           response = await runAnalysis(params);
         } else {
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/05d36e09-cd94-4f96-af55-b3946c76739f',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({runId:'pre-fix',hypothesisId:'H1',location:'frontend/src/pages/DemoPage.tsx:runMarketSentinel',message:'Falling back to runSimpleAnalysis because port code missing',data:{originName:origin.name,destinationName:destination.name,originCode,destinationCode},timestamp:Date.now()})}).catch(()=>{});
+          // #endregion
           response = await runSimpleAnalysis();
         }
       } else {
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/05d36e09-cd94-4f96-af55-b3946c76739f',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({runId:'pre-fix',hypothesisId:'H3',location:'frontend/src/pages/DemoPage.tsx:runMarketSentinel',message:'Falling back to runSimpleAnalysis because origin/destination missing',data:{hasOrigin:Boolean(origin),hasDestination:Boolean(destination)},timestamp:Date.now()})}).catch(()=>{});
+        // #endregion
         response = await runSimpleAnalysis();
       }
 
       clearTimeout(timeoutId); // Clear safety timeout on success
       setMarketSentinelData(response);
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/05d36e09-cd94-4f96-af55-b3946c76739f',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({runId:'pre-fix',hypothesisId:'H4',location:'frontend/src/pages/DemoPage.tsx:runMarketSentinel',message:'Market Sentinel response received',data:{summary:response.signal_packet?.summary ?? null,severity:response.signal_packet?.severity ?? null,affectedLanes:response.signal_packet?.affected_lanes ?? []},timestamp:Date.now()})}).catch(()=>{});
+      // #endregion
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
       setMarketSentinelError(errorMessage);
@@ -561,7 +629,79 @@ export const DemoPage: React.FC = () => {
       clearTimeout(timeoutId);
       setMarketSentinelLoading(false);
     }
-  }, [origin, destination, marketSentinelLoading]);
+  }, [origin, destination, selectedRoute, marketSentinelLoading]);
+
+  // Run Hedge Analysis (assess risk + recommend strategy)
+  const runHedgeAnalysis = useCallback(async () => {
+    if (hedgeLoading) return;
+
+    setHedgeLoading(true);
+    setHedgeError(null);
+
+    const timeoutId = setTimeout(() => {
+      setHedgeLoading(false);
+    }, 12000);
+
+    try {
+      const routeName = selectedRoute
+        ? selectedRoute.name
+        : origin && destination
+          ? `${origin.name} → ${destination.name}`
+          : DEFAULT_OPERATION_PARAMS.current_route;
+
+      const params = {
+        ...DEFAULT_OPERATION_PARAMS,
+        current_route: routeName,
+      };
+
+      // Step 1: Assess risk
+      const riskData = await assessRisk(params);
+      setHedgeRiskData(riskData);
+
+      // Step 2: Recommend strategy (auto-detect crisis from market)
+      const isCrisis = riskData.urgency === 'CRITICAL' || riskData.market_regime === 'crisis';
+      const recommendation = await recommendStrategy(params, isCrisis);
+      setHedgeRecommendation(recommendation);
+
+      clearTimeout(timeoutId);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
+      setHedgeError(errorMessage);
+      console.error('Hedge analysis error:', err);
+    } finally {
+      clearTimeout(timeoutId);
+      setHedgeLoading(false);
+    }
+  }, [origin, destination, selectedRoute, hedgeLoading]);
+
+  // Auto-trigger hedge analysis when Market Sentinel detects HIGH/CRITICAL
+  useEffect(() => {
+    if (!marketSentinelData?.signal_packet) return;
+    const severity = marketSentinelData.signal_packet.severity;
+    if ((severity === 'HIGH' || severity === 'CRITICAL') && !hedgeRiskData && !hedgeLoading) {
+      runHedgeAnalysis();
+    }
+  }, [marketSentinelData]);
+
+  // Run Visual Risk Analysis on demand (REST API)
+  const runVisualRiskAnalysis = useCallback(async (scenario: string = 'suez_blockage') => {
+    if (visualRiskAnalyzing) return;
+
+    setVisualRiskAnalyzing(true);
+    setVisualRiskSource('Satellite Feed');
+    setVisualRiskLocation(scenario === 'port_congestion' ? 'Rotterdam Port' : 'Suez Canal');
+    setVisualRiskAnalysis(null);
+
+    try {
+      const result = await getDemoAnalysis(scenario);
+      setVisualRiskAnalysis(result.analysis);
+    } catch (err) {
+      console.error('Visual risk analysis error:', err);
+      setVisualRiskAnalysis(null);
+    } finally {
+      setVisualRiskAnalyzing(false);
+    }
+  }, [visualRiskAnalyzing]);
 
   // Helper to convert port names to codes
   const getPortCode = (portName: string): string | null => {
@@ -681,16 +821,16 @@ export const DemoPage: React.FC = () => {
               <GlobalMap3D
                 origin={origin || undefined}
                 destination={destination || undefined}
+                routes={routes}
                 onRouteSelect={handleRouteSelect}
-                onRoutesCalculated={setRoutes}
                 selectedRouteFromParent={selectedRoute}
               />
             ) : (
               <GlobalMap2D
                 origin={origin || undefined}
                 destination={destination || undefined}
+                routes={routes}
                 onRouteSelect={handleRouteSelect}
-                onRoutesCalculated={setRoutes}
                 selectedRouteFromParent={selectedRoute}
                 currentTime={currentTime}
                 onShipSelect={setSelectedShip}
@@ -760,48 +900,111 @@ export const DemoPage: React.FC = () => {
             {isRightCollapsed ? <ChevronLeft className="w-3 h-3 text-white/60" /> : <ChevronRight className="w-3 h-3 text-white/60" />}
           </button>
 
-          <div className={`flex-1 overflow-y-auto pr-2 pl-2 transition-opacity duration-200 ${isRightCollapsed ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
-            {/* Visual Risk Panel (NEW) */}
-            {(visualRiskAnalyzing || visualRiskAnalysis) && (
-              <div className="mb-3">
-                <VisualRiskPanel
-                  isAnalyzing={visualRiskAnalyzing}
-                  analysisSource={visualRiskSource}
-                  analysisLocation={visualRiskLocation}
-                  analysis={visualRiskAnalysis}
+          <div className={`flex-1 flex flex-col overflow-hidden transition-opacity duration-200 ${isRightCollapsed ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
+
+            {/* Tab Bar */}
+            <div className="flex border-b border-[#1a2332] shrink-0 bg-[#0d1422]">
+              {([
+                { id: 'intelligence' as const, label: 'AI', icon: <Brain className="w-3.5 h-3.5" /> },
+                { id: 'agents' as const, label: 'Agents', icon: <Activity className="w-3.5 h-3.5" /> },
+                { id: 'risk' as const, label: 'Risk', icon: <Eye className="w-3.5 h-3.5" /> },
+                { id: 'compliance' as const, label: 'Comply', icon: <Shield className="w-3.5 h-3.5" /> },
+              ]).map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setSidebarTab(tab.id)}
+                  className="flex-1 flex items-center justify-center gap-1 px-1 py-2 text-[11px] font-medium transition-all relative"
+                  style={{
+                    color: sidebarTab === tab.id ? '#ffffff' : 'rgba(255, 255, 255, 0.45)',
+                    background: sidebarTab === tab.id ? SIDEBAR_TAB_THEME[tab.id].activeBg : 'transparent',
+                    boxShadow: sidebarTab === tab.id ? `inset 0 0 0 1px ${SIDEBAR_TAB_THEME[tab.id].border}` : 'none'
+                  }}
+                >
+                  {tab.icon}
+                  <span>{tab.label}</span>
+                  {sidebarTab === tab.id && (
+                    <div
+                      className="absolute bottom-0 inset-x-2 h-[2px] rounded-full"
+                      style={{ background: SIDEBAR_TAB_THEME[tab.id].accent }}
+                    />
+                  )}
+                </button>
+              ))}
+            </div>
+
+            {/* Tab Content */}
+            <div className="flex-1 overflow-y-auto">
+              {sidebarTab === 'intelligence' && (
+                <>
+                  <AzureBadges />
+                  <AgentCoTPanel
+                    steps={cotSteps}
+                    debates={debates}
+                    decision={finalDecision}
+                    activeStepIndex={activeStepIndex}
+                    activeDebateIndex={activeDebateIndex}
+                    debatePhase={debatePhase}
+                    isActive={isCotActive}
+                    executionSteps={executionSteps}
+                    activeExecutionIndex={activeExecutionIndex}
+                    executionPhase={executionPhase}
+                    executionSummary={executionSummary}
+                    awaitingConfirmation={awaitingConfirmation}
+                    onConfirmDecision={handleConfirmDecision}
+                    selectedRoute={selectedRoute}
+                  />
+                </>
+              )}
+              {sidebarTab === 'agents' && (
+                <AgentWorkflow
+                  currentTime={currentTime}
+                  isLive={demoStarted}
+                  marketSentinelData={marketSentinelData}
+                  marketSentinelLoading={marketSentinelLoading}
+                  marketSentinelError={marketSentinelError}
+                  onRunMarketSentinel={runMarketSentinel}
+                  selectedRoute={selectedRoute}
+                  hedgeRiskData={hedgeRiskData}
+                  hedgeRecommendation={hedgeRecommendation}
+                  hedgeLoading={hedgeLoading}
+                  hedgeError={hedgeError}
+                  onRunHedge={runHedgeAnalysis}
+                  isCotActive={isCotActive}
+                  debateCount={debates.length}
+                  executionPhase={executionPhase}
                 />
-              </div>
-            )}
-
-            {/* Azure stack badges */}
-            <AzureBadges />
-
-            {/* Chain-of-Thought Panel */}
-            <AgentCoTPanel
-              steps={cotSteps}
-              debates={debates}
-              decision={finalDecision}
-              activeStepIndex={activeStepIndex}
-              activeDebateIndex={activeDebateIndex}
-              debatePhase={debatePhase}
-              isActive={isCotActive}
-              executionSteps={executionSteps}
-              activeExecutionIndex={activeExecutionIndex}
-              executionPhase={executionPhase}
-              executionSummary={executionSummary}
-              awaitingConfirmation={awaitingConfirmation}
-              onConfirmDecision={handleConfirmDecision}
-            />
-
-            {/* Agent workflow */}
-            <AgentWorkflow
-              currentTime={currentTime}
-              isLive={demoStarted}
-              marketSentinelData={marketSentinelData}
-              marketSentinelLoading={marketSentinelLoading}
-              marketSentinelError={marketSentinelError}
-              onRunMarketSentinel={runMarketSentinel}
-            />
+              )}
+              {sidebarTab === 'risk' && (
+                <div className="p-3">
+                  <VisualRiskPanel
+                    isAnalyzing={visualRiskAnalyzing}
+                    analysisSource={visualRiskSource}
+                    analysisLocation={visualRiskLocation}
+                    analysis={visualRiskAnalysis}
+                    selectedRoute={selectedRoute}
+                    onRunAnalysis={runVisualRiskAnalysis}
+                  />
+                </div>
+              )}
+              {sidebarTab === 'compliance' && (
+                <div className="p-3">
+                  <div className="mb-3 flex items-center justify-between rounded-sm border border-[#4c3a15] bg-[#1f1a12] px-3 py-2">
+                    <div className="flex items-center gap-2">
+                      <Shield className="h-3.5 w-3.5 text-[#f59e0b]" />
+                      <span className="text-xs font-semibold tracking-wide text-[#fbbf24]">Compliance Check</span>
+                    </div>
+                    <div className="rounded-full border border-[#3f3420] bg-[#2b2418] px-2 py-0.5 text-[10px] font-medium text-[#fde68a]">
+                      Policy Guard
+                    </div>
+                  </div>
+                  <CompliancePanel
+                    originPort={origin}
+                    destinationPort={destination}
+                    activeMapRoute={selectedRoute}
+                  />
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Collapsed Text */}
@@ -880,4 +1083,5 @@ export const DemoPage: React.FC = () => {
     </div>
   );
 };
+
 

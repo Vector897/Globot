@@ -13,6 +13,8 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 import os
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import List, Optional, Dict, Any
@@ -20,6 +22,8 @@ from datetime import datetime
 import uvicorn
 import logging
 import hashlib
+import json
+import time
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -57,7 +61,7 @@ app = FastAPI(
     description="DJI Drone Intelligent Sales Assistant System", version="0.1.0"
 )
 
-# Register routes
+# 注册路由
 app.include_router(demo_router)
 app.include_router(market_sentinel_router)
 app.include_router(maritime_router)

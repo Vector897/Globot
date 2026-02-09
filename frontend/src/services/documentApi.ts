@@ -188,12 +188,28 @@ export const documentAPI = {
 
   // Upload a document with OCR processing
   uploadDocument: async (params: UploadDocumentParams): Promise<DocumentInfo> => {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/05d36e09-cd94-4f96-af55-b3946c76739f',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({runId:'pre-fix',hypothesisId:'H1',location:'frontend/src/services/documentApi.ts:uploadDocument:start',message:'uploadDocument called',data:{customerIdType:typeof params.customer_id,vesselIdType:typeof params.vessel_id,documentType:params.document_type,titlePresent:!!params.title,filePresent:!!params.file,fileCtor:params.file ? (params.file as any).constructor?.name : null,fileType:params.file ? (params.file as any).type : null,fileSize:params.file ? (params.file as any).size : null},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
+    if (
+      params.customer_id == null ||
+      params.vessel_id == null ||
+      !params.document_type ||
+      !params.title ||
+      !params.file
+    ) {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/05d36e09-cd94-4f96-af55-b3946c76739f',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({runId:'pre-fix',hypothesisId:'H1',location:'frontend/src/services/documentApi.ts:uploadDocument:missingRequired',message:'missing required upload fields',data:{hasCustomerId:params.customer_id != null,hasVesselId:params.vessel_id != null,hasDocumentType:!!params.document_type,hasTitle:!!params.title,hasFile:!!params.file},timestamp:Date.now()})}).catch(()=>{});
+      // #endregion
+      throw new Error('Missing required fields: customer_id, vessel_id, document_type, title, and file are all required.');
+    }
+
     const formData = new FormData();
-    formData.append('customer_id', params.customer_id.toString() || "fake_customer_id");
-    formData.append('vessel_id', params.vessel_id.toString() || "1");
-    formData.append('document_type', params.document_type || "fake_document_type");
-    formData.append('title', params.title || "fake_title");
-    formData.append('file', params.file || "fake_file");
+    formData.append('customer_id', String(params.customer_id));
+    formData.append('vessel_id', String(params.vessel_id));
+    formData.append('document_type', params.document_type);
+    formData.append('title', params.title);
+    formData.append('file', params.file);
 
     if (params.issue_date) {
       formData.append('issue_date', params.issue_date);
@@ -208,12 +224,22 @@ export const documentAPI = {
       formData.append('issuing_authority', params.issuing_authority);
     }
 
-    const response = await api.post('/v2/maritime/documents/upload', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data'
-      }
-    });
-    return response.data;
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/05d36e09-cd94-4f96-af55-b3946c76739f',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({runId:'pre-fix',hypothesisId:'H2',location:'frontend/src/services/documentApi.ts:uploadDocument:beforePost',message:'prepared multipart payload',data:{keys:Array.from(formData.keys()),forcingContentType:'multipart/form-data'},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
+    try {
+      const response = await api.post('/v2/maritime/documents/upload', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+      return response.data;
+    } catch (error: any) {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/05d36e09-cd94-4f96-af55-b3946c76739f',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({runId:'pre-fix',hypothesisId:'H3',location:'frontend/src/services/documentApi.ts:uploadDocument:catch',message:'upload request failed',data:{status:error?.response?.status,errorData:error?.response?.data,errorMessage:error?.message},timestamp:Date.now()})}).catch(()=>{});
+      // #endregion
+      throw error;
+    }
   },
 
   // Run CrewAI document analysis

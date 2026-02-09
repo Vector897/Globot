@@ -14,6 +14,23 @@ from sentence_transformers import CrossEncoder
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
+DEBUG_LOG_PATH = "/Users/timothylin/Globot/.cursor/debug.log"
+
+
+def _debug_log(run_id: str, hypothesis_id: str, location: str, message: str, data: Dict[str, Any]) -> None:
+    try:
+        payload = {
+            "runId": run_id,
+            "hypothesisId": hypothesis_id,
+            "location": location,
+            "message": message,
+            "data": data,
+            "timestamp": __import__("time").time_ns() // 1_000_000,
+        }
+        with open(DEBUG_LOG_PATH, "a", encoding="utf-8") as f:
+            f.write(json.dumps(payload, ensure_ascii=True) + "\n")
+    except Exception:
+        pass
 
 
 @dataclass
@@ -52,12 +69,25 @@ class MaritimeKnowledgeBase:
         self.reranker = None
         self.bm25_indices: Dict[str, Any] = {}
         self.doc_maps: Dict[str, Dict[str, Document]] = {}
-
+        
         # Initialize Gemini embeddings
         self.embeddings = GoogleGenerativeAIEmbeddings(
-            model="gemini-embedding-001",
+            model="models/gemini-embedding-001",
             google_api_key=settings.google_api_key
         )
+        # region agent log
+        _debug_log(
+            "pre-fix",
+            "H2",
+            "maritime_knowledge_base.py:__init__",
+            "Embeddings object created",
+            {
+                "embeddings_class": type(self.embeddings).__name__,
+                "embeddings_model_attr": str(getattr(self.embeddings, "model", None)),
+                "has_client_attr": hasattr(self.embeddings, "client"),
+            },
+        )
+        # endregion
 
         # Create a Chroma collection for each defined collection
         for collection_name in self.COLLECTIONS.keys():
@@ -771,12 +801,65 @@ class MaritimeKnowledgeBase:
             if not content:
                 content = f"[Document: {metadata.get('title', 'Untitled')}] No text content extracted."
                 logger.warning(f"Document {doc_id} has no text content, using placeholder")
+                # region agent log
+                _debug_log(
+                    "pre-fix",
+                    "H4",
+                    "maritime_knowledge_base.py:add_user_document",
+                    "Using placeholder content branch",
+                    {
+                        "doc_id": doc_id,
+                        "title_present": bool(metadata.get("title")),
+                    },
+                )
+                # endregion
             
             doc = Document(page_content=content, metadata=metadata)
+            # region agent log
+            _debug_log(
+                "pre-fix",
+                "H1",
+                "maritime_knowledge_base.py:add_user_document",
+                "Before add_documents",
+                {
+                    "doc_id": doc_id,
+                    "content_len": len(content),
+                    "content_is_placeholder": content.startswith("[Document:"),
+                    "embedding_model_attr": str(getattr(self.embeddings, "model", None)),
+                    "collection_name": "user_documents",
+                },
+            )
+            # endregion
             collection.add_documents([doc], ids=[doc_id])
+            # region agent log
+            _debug_log(
+                "pre-fix",
+                "H5",
+                "maritime_knowledge_base.py:add_user_document",
+                "add_documents succeeded",
+                {
+                    "doc_id": doc_id,
+                    "metadata_key_count": len(metadata.keys()),
+                },
+            )
+            # endregion
             logger.info(f"Added user document {doc_id} to ChromaDB")
             return doc_id
         except Exception as e:
+            # region agent log
+            _debug_log(
+                "pre-fix",
+                "H3",
+                "maritime_knowledge_base.py:add_user_document",
+                "add_documents failed",
+                {
+                    "doc_id": doc_id,
+                    "exception_type": type(e).__name__,
+                    "exception_message": str(e),
+                    "embedding_model_attr": str(getattr(self.embeddings, "model", None)),
+                },
+            )
+            # endregion
             logger.error(f"Error adding user document {doc_id}: {e}")
             raise
 

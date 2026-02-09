@@ -1,20 +1,15 @@
-import { 
-  PATH_ASIA_EUROPE_CAPE, 
-  PATH_ASIA_EUROPE_SUEZ, 
-  PATH_ASIA_EUROPE_ARCTIC,
-  PATH_ASIA_USWC, 
-  PATH_ASIA_USWC_SOUTH,
-  PATH_ASIA_USEC_PANAMA,
-  PATH_EUROPE_USEC,
-  PATH_INTRA_ASIA,
-  PATH_ASIA_MED_SUEZ,
-  PATH_ASIA_MED_CAPE,
-  PATH_SPINE_MED,
-  PATH_SPINE_NORTH_ATLANTIC
+import {
+  MARITIME_NODES,
+  MARITIME_EDGES,
+  SeaNode,
+  SeaEdge
 } from './routeData';
 import { MAJOR_PORTS } from '../data/ports';
 
-// Interfaces
+// ============================================================
+// Public Interfaces
+// ============================================================
+
 export interface GlobalPort {
   name: string;
   coordinates: [number, number];
@@ -30,340 +25,383 @@ export interface Route {
   strokeWidth: number;
   waypoints: [number, number][];
   waypointNames: string[];
-  distance: number;
-  estimatedTime: number;
+  distance: number;       // nautical miles
+  estimatedTime: number;  // days
   description: string;
 }
 
-export function calculateRoutes(origin: [number, number], destination: [number, number]): Route[] {
-  console.log('[RouteCalculator] Input Coordinates:', origin, destination);
+export interface RouteOptions {
+  avoidHighRisk?: boolean;
+  weatherPenalty?: number;
+}
+
+// ============================================================
+// Precomputed Adjacency List  (O(1) neighbor lookup per node)
+// ============================================================
+
+interface AdjEntry {
+  neighborId: string;
+  edge: SeaEdge;
+}
+
+const ADJACENCY: Record<string, AdjEntry[]> = {};
+
+// Build once at module load
+(function buildAdjacency() {
+  for (const key in MARITIME_NODES) {
+    ADJACENCY[key] = [];
+  }
+  for (const edge of MARITIME_EDGES) {
+    ADJACENCY[edge.from]?.push({ neighborId: edge.to, edge });
+    ADJACENCY[edge.to]?.push({ neighborId: edge.from, edge });
+  }
+})();
+
+// ============================================================
+// Binary Min-Heap Priority Queue  (O(log n) enqueue/dequeue)
+// ============================================================
+
+interface HeapNode {
+  id: string;
+  priority: number;
+}
+
+class MinHeap {
+  private heap: HeapNode[] = [];
+
+  get size() { return this.heap.length; }
+
+  enqueue(id: string, priority: number) {
+    this.heap.push({ id, priority });
+    this._bubbleUp(this.heap.length - 1);
+  }
+
+  dequeue(): HeapNode | undefined {
+    if (this.heap.length === 0) return undefined;
+    const min = this.heap[0];
+    const last = this.heap.pop()!;
+    if (this.heap.length > 0) {
+      this.heap[0] = last;
+      this._sinkDown(0);
+    }
+    return min;
+  }
+
+  private _bubbleUp(idx: number) {
+    while (idx > 0) {
+      const parentIdx = (idx - 1) >> 1;
+      if (this.heap[idx].priority >= this.heap[parentIdx].priority) break;
+      [this.heap[idx], this.heap[parentIdx]] = [this.heap[parentIdx], this.heap[idx]];
+      idx = parentIdx;
+    }
+  }
+
+  private _sinkDown(idx: number) {
+    const length = this.heap.length;
+    while (true) {
+      let smallest = idx;
+      const left = 2 * idx + 1;
+      const right = 2 * idx + 2;
+      if (left < length && this.heap[left].priority < this.heap[smallest].priority) smallest = left;
+      if (right < length && this.heap[right].priority < this.heap[smallest].priority) smallest = right;
+      if (smallest === idx) break;
+      [this.heap[idx], this.heap[smallest]] = [this.heap[smallest], this.heap[idx]];
+      idx = smallest;
+    }
+  }
+}
+
+// ============================================================
+// Route Memoization Cache
+// ============================================================
+
+const routeCache = new Map<string, Route[]>();
+
+function cacheKey(origin: [number, number], destination: [number, number], options?: RouteOptions): string {
+  // Round to 2 decimal places to avoid floating-point key mismatches
+  const o = `${origin[0].toFixed(2)},${origin[1].toFixed(2)}`;
+  const d = `${destination[0].toFixed(2)},${destination[1].toFixed(2)}`;
+  const opts = options ? `|risk=${options.avoidHighRisk}|wx=${options.weatherPenalty}` : '';
+  return `${o}->${d}${opts}`;
+}
+
+// ============================================================
+// Main Entry Point
+// ============================================================
+
+export function calculateRoutes(
+  origin: [number, number],
+  destination: [number, number],
+  options?: RouteOptions
+): Route[] {
+  // Check cache first
+  const key = cacheKey(origin, destination, options);
+  const cached = routeCache.get(key);
+  if (cached) return cached;
+
   const originPort = findNearestPort(origin);
   const destPort = findNearestPort(destination, new Set([originPort.name]));
-  console.log('[RouteCalculator] Nearest Ports:', originPort?.name, destPort?.name, originPort?.region, destPort?.region);
 
   if (!originPort || !destPort) {
-      console.warn('[RouteCalculator] Could not identify ports.');
-      return calculateDynamicRoutes(originPort || { coordinates: origin, name: 'Origin', region: 'Unknown' } as any, destPort || { coordinates: destination, name: 'Dest', region: 'Unknown' } as any);
-  }
-  
-  // Helper to check regions
-  const isAsia = (p: GlobalPort) => {
-      const res = p.region === 'Asia' || p.region === 'Middle East';
-      // console.log(`isAsia(${p.name}):`, res, p.region);
-      return res;
-  };
-  const isEurope = (p: GlobalPort) => {
-      const res = p.region === 'Europe';
-      // console.log(`isEurope(${p.name}):`, res, p.region);
-      return res;
-  };
-  const isUSWest = (p: GlobalPort) => p.region === 'Americas' && p.coordinates[0] < -100; // Rough check
-  const isUSEast = (p: GlobalPort) => p.region === 'Americas' && p.coordinates[0] > -100;
-
-  // 1. ASIA <-> EUROPE
-  if ((isAsia(originPort) && isEurope(destPort)) || (isEurope(originPort) && isAsia(destPort))) {
-    return [
-      {
-        id: "route-cape",
-        name: "Cape of Good Hope",
-        riskLevel: "low",
-        color: "#2ecc71",
-        strokeWidth: 3,
-        waypoints: adjustDirection(PATH_ASIA_EUROPE_CAPE, originPort, destPort),
-        waypointNames: [originPort.name, "Singapore", "Cape Town", destPort.name],
-        distance: 13500, // Approx nm
-        estimatedTime: 13500 / 18 / 24, // Days @ 18kts
-        description: "Primary secure route via Africa"
-      },
-      {
-        id: "route-suez",
-        name: "Suez Canal / Red Sea",
-        riskLevel: "high",
-        color: "#e74c3c",
-        strokeWidth: 3,
-        waypoints: adjustDirection(PATH_ASIA_EUROPE_SUEZ, originPort, destPort),
-        waypointNames: [originPort.name, "Singapore", "Suez", destPort.name],
-        distance: 10500,
-        estimatedTime: 10500 / 18 / 24,
-        description: "High risk transit zone"
-      },
-      {
-        id: "route-arctic",
-        name: "Northern Sea Route",
-        riskLevel: "high",
-        color: "#9b59b6",
-        strokeWidth: 2,
-        waypoints: adjustDirection(PATH_ASIA_EUROPE_ARCTIC, originPort, destPort),
-        waypointNames: [originPort.name, "Bering Strait", "Arctic", destPort.name],
-        distance: 8000,
-        estimatedTime: 8000 / 14 / 24, // Slower speed in ice
-        description: "Arctic route (Seasonal/Ice)"
-      }
-    ];
+    const fallback = calculateDynamicRoutes(
+      originPort || { coordinates: origin, name: 'Origin', region: 'Unknown', country: '' } as GlobalPort,
+      destPort || { coordinates: destination, name: 'Dest', region: 'Unknown', country: '' } as GlobalPort,
+    );
+    routeCache.set(key, fallback);
+    return fallback;
   }
 
-  // 2. ASIA <-> US WEST COAST
-  if ((isAsia(originPort) && isUSWest(destPort)) || (isUSWest(originPort) && isAsia(destPort))) {
-    return [
-      {
-        id: "route-pacific",
-        name: "Pacific Great Circle",
-        riskLevel: "low",
-        color: "#3498db",
-        strokeWidth: 3,
-        waypoints: adjustDirection(PATH_ASIA_USWC, originPort, destPort),
-        waypointNames: [originPort.name, "Pacific", destPort.name],
-        distance: 6000,
-        estimatedTime: 14,
-        description: "Direct trans-pacific route"
-      },
-      {
-        id: "route-pacific-south",
-        name: "Pacific Southern Route",
-        riskLevel: "low",
-        color: "#f1c40f",
-        strokeWidth: 2,
-        waypoints: adjustDirection(PATH_ASIA_USWC_SOUTH, originPort, destPort),
-        waypointNames: [originPort.name, "Hawaii", destPort.name],
-        distance: 7200,
-        estimatedTime: 17,
-        description: "Avoids northern storms"
-      },
-      {
-         id: "route-pacific-direct",
-         name: "Direct Line (Theoretical)",
-         riskLevel: "medium",
-         color: "#95a5a6",
-         strokeWidth: 1,
-         waypoints: [originPort.coordinates, destPort.coordinates],
-         waypointNames: [originPort.name, "Ocean", destPort.name],
-         distance: 5800,
-         estimatedTime: 13,
-         description: "Shortest geometric path"
-      }
-    ];
-  }
-
-  // 3. ASIA <-> US EAST COAST
-  if ((isAsia(originPort) && isUSEast(destPort)) || (isUSEast(originPort) && isAsia(destPort))) {
-    return [{
-      id: "route-panama",
-      name: "Panama Canal",
-      riskLevel: "medium",
-      color: "#f1c40f",
-      strokeWidth: 2,
-      waypoints: adjustDirection(PATH_ASIA_USEC_PANAMA, originPort, destPort),
-      waypointNames: [originPort.name, "Panama", destPort.name],
-      distance: 10000,
-      estimatedTime: 23,
-      description: "Via Panama Canal"
-    }];
-  }
-  
-  // 4. EUROPE <-> US EAST COAST
-  if ((isEurope(originPort) && isUSEast(destPort)) || (isUSEast(originPort) && isEurope(destPort))) {
-    return [{
-      id: "route-transatlantic",
-      name: "Trans-Atlantic",
-      riskLevel: "low",
-      color: "#3498db",
-      strokeWidth: 2,
-      waypoints: adjustDirection(PATH_EUROPE_USEC, originPort, destPort),
-      waypointNames: [originPort.name, "Atlantic", destPort.name],
-      distance: 3500,
-      estimatedTime: 8,
-      description: "Direct Atlantic crossing"
-    }];
-  }
-
-  // Heuristics for Regions
-  const medPorts = new Set(['Barcelona', 'Valencia', 'Algeciras', 'Genoa', 'Piraeus', 'Port Said', 'Tanger Med', 'Marsaxlokk', 'Istanbul', 'Trieste']);
-  const isMed = (p: GlobalPort) => medPorts.has(p.name) || (p.coordinates[1] > 30 && p.coordinates[1] < 46 && p.coordinates[0] > -6 && p.coordinates[0] < 36);
-  const isNorthEurope = (p: GlobalPort) => p.region === 'Europe' && !isMed(p);
-  const isAsiaPort = (p: GlobalPort) => p.region === 'Asia' || p.region === 'Middle East';
-
-  // --- STRATEGY 1: INTRA-MEDITERRANEAN (Direct via Med Spine) ---
-  if (isMed(originPort) && isMed(destPort)) {
-      return [{
-          id: "route-med-direct",
-          name: "Mediterranean Direct",
-          riskLevel: "low",
-          color: "#8e44ad",
-          strokeWidth: 2,
-          waypoints: stitchSpineRoute(originPort, destPort, PATH_SPINE_MED),
-          waypointNames: [originPort.name, "Med Highway", destPort.name],
-          distance: calculateTotalDistance(stitchSpineRoute(originPort, destPort, PATH_SPINE_MED)),
-          estimatedTime: 4,
-          description: "Direct Mediterranean Sea Lane"
-      }];
-  }
-
-  // --- STRATEGY 2: NORTH EUROPE -> MEDITERRANEAN (Via Atlantic Spine) ---
-  if ((isNorthEurope(originPort) && isMed(destPort)) || (isMed(originPort) && isNorthEurope(destPort))) {
-      // Always route via Gibraltar
-      // 1. Get Atlantic Spine (N <-> S)
-      const atlSpine = originPort.coordinates[1] > destPort.coordinates[1] ? PATH_SPINE_NORTH_ATLANTIC : [...PATH_SPINE_NORTH_ATLANTIC].reverse();
-      
-      // 2. Get Med Spine Segment
-      // If entering from Gibraltar (West), we find the path on Med spine to Destination
-      // Gibraltar is at [-5.5, 36.0], which is index 0 of MED_SPINE
-      const medSegment = isNorthEurope(originPort) 
-          ? stitchSpineRoute({ coordinates: [-5.5, 36.0] } as any, destPort, PATH_SPINE_MED) // North -> Med
-          : stitchSpineRoute(originPort, { coordinates: [-5.5, 36.0] } as any, PATH_SPINE_MED); // Med -> North
-
-      // Combine: Origin -> Atl Spine -> Med Segment -> Dest
-      // Note: stitchSpineRoute handles the Origin/Dest connection, so we just join the arrays roughly
-      // We need to be careful about duplication at the join point (Gibraltar)
-      
-      let finalPath: [number, number][];
-      if (isNorthEurope(originPort)) {
-          finalPath = [
-              originPort.coordinates, 
-              ...atlSpine, 
-              ...medSegment
-          ];
-      } else {
-          finalPath = [
-              ...medSegment,
-              ...atlSpine,
-              destPort.coordinates
-          ];
-      }
-
-      return [{
-          id: "route-eur-med",
-          name: "Europe-Med Connector",
-          riskLevel: "low",
-          color: "#27ae60",
-          strokeWidth: 2,
-          waypoints: finalPath,
-          waypointNames: [originPort.name, "Gibraltar", destPort.name],
-          distance: calculateTotalDistance(finalPath),
-          estimatedTime: 8,
-          description: "Via Gibraltar Strait"
-      }];
-  }
-
-  // --- STRATEGY 3: ASIA -> MEDITERRANEAN (Via Suez + Med Spine) ---
-  if ((isAsiaPort(originPort) && isMed(destPort)) || (isMed(originPort) && isAsiaPort(destPort))) {
-      // 1. Asia -> Suez (Use existing high-fidelity SUEZ path, but trim the Med part)
-      // PATH_ASIA_MED_SUEZ ends at Port Said now. Perfect.
-      
-      // 2. Med Spine (Port Said <-> Destination)
-      // Port Said is at [32.0, 31.3], near end of MED_SPINE
-      
-      let asiaPart = PATH_ASIA_MED_SUEZ;
-      let medPart: [number, number][];
-      
-      if (isAsiaPort(originPort)) {
-         // Asia -> Med
-         // Med Spine needs to go FROM Port Said TO Dest
-         // Port Said is the LAST point of Med Spine. So we likely need to reverse Med Spine or find sub-segment.
-         // Actually MED_SPINE is Gib -> Suez. So Port Said is End.
-         // We want Suez -> Dest. So we need Med Spine REVERSED, then stitched to Dest.
-         medPart = stitchSpineRoute({ coordinates: [32.0, 31.3] } as any, destPort, [...PATH_SPINE_MED].reverse());
-         
-         const finalPath = [...asiaPart, ...medPart];
-         return [{
-             id: "route-asia-med",
-             name: "Asia-Med Express",
-             riskLevel: "high", // Red Sea
-             color: "#e74c3c",
-             strokeWidth: 3,
-             waypoints: finalPath,
-             waypointNames: [originPort.name, "Suez", destPort.name],
-             distance: 9500,
-             estimatedTime: 18,
-             description: "Direct via Suez Canal"
-         }];
-      } else {
-          // Med -> Asia
-          // Med Part: Dest -> Port Said
-          medPart = stitchSpineRoute(originPort, { coordinates: [32.0, 31.3] } as any, PATH_SPINE_MED);
-          const asiaRev = [...asiaPart].reverse();
-          const finalPath = [...medPart, ...asiaRev];
-           return [{
-             id: "route-med-asia",
-             name: "Med-Asia Express",
-             riskLevel: "high",
-             color: "#e74c3c",
-             strokeWidth: 3,
-             waypoints: finalPath,
-             waypointNames: [originPort.name, "Suez", destPort.name],
-             distance: 9500,
-             estimatedTime: 18,
-             description: "Direct via Suez Canal"
-         }];
-      }
-  }
-
-  // Fallback: Legacy Logic for Trans-Pacific / Cape / etc.
-  return calculateDynamicRoutes(originPort, destPort);
-}
-
-// --- HELPERS ---
-
-// --- SPINE STITCHING HELPER ---
-// Projects origin/dest onto a "Sea Highway" and connects them
-function stitchSpineRoute(origin: {coordinates: [number, number]}, dest: {coordinates: [number, number]}, spine: [number, number][]): [number, number][] {
-    // 1. Find nearest index on spine for Start
-    let startIndex = 0;
-    let minStartDist = Infinity;
-    spine.forEach((pt, i) => {
-        const d = calculateDistance(origin.coordinates[1], origin.coordinates[0], pt[1], pt[0]);
-        if (d < minStartDist) {
-            minStartDist = d;
-            startIndex = i;
-        }
-    });
-
-    // 2. Find nearest index on spine for End
-    let endIndex = 0;
-    let minEndDist = Infinity;
-    spine.forEach((pt, i) => {
-        const d = calculateDistance(dest.coordinates[1], dest.coordinates[0], pt[1], pt[0]);
-        if (d < minEndDist) {
-            minEndDist = d;
-            endIndex = i;
-        }
-    });
-
-    // 3. Extract Segment
-    let segment: [number, number][] = [];
-    if (startIndex <= endIndex) {
-        segment = spine.slice(startIndex, endIndex + 1);
-    } else {
-        segment = spine.slice(endIndex, startIndex + 1).reverse();
+  // Graph-based pathfinding (primary strategy)
+  try {
+    const graphRoutes = findGraphRoutes(originPort, destPort, options);
+    if (graphRoutes && graphRoutes.length > 0) {
+      routeCache.set(key, graphRoutes);
+      return graphRoutes;
     }
+  } catch (e) {
+    console.warn('[RouteCalculator] Graph pathfinding failed, using direct fallback:', e);
+  }
 
-    // 4. Return stitched path (Origin -> Spine Segment -> Dest)
-    // We add origin/dest explicitly. 
-    // Optimization: If origin is very close to start point, don't duplicate
-    return [origin.coordinates, ...segment, dest.coordinates];
+  // Fallback: direct great-circle route for disconnected graph regions
+  const fallback = calculateDynamicRoutes(originPort, destPort);
+  routeCache.set(key, fallback);
+  return fallback;
 }
 
-// Reverses path if going West->East vs East->West relative to definitions
-function adjustDirection(path: [number, number][], origin: GlobalPort, dest: GlobalPort): [number, number][] {
-   // Simple heuristic: If path defined A->B, and we want B->A, reverse it.
-   // We'll compare distance of origin to path[0] vs path[last]
-   const dStart = calculateDistance(origin.coordinates[1], origin.coordinates[0], path[0][1], path[0][0]);
-   const dEnd = calculateDistance(origin.coordinates[1], origin.coordinates[0], path[path.length-1][1], path[path.length-1][0]);
-   
-   let finalPath = [...path];
-   if (dEnd < dStart) {
-     finalPath = finalPath.reverse();
-   }
-   
-   // Stitch exact ports to ends
-   return [origin.coordinates, ...finalPath, dest.coordinates];
+// ============================================================
+// Graph Pathfinding (A*)
+// ============================================================
+
+function findGraphRoutes(origin: GlobalPort, dest: GlobalPort, options?: RouteOptions): Route[] | null {
+  const startNode = findNearestGraphNode(origin.coordinates);
+  const endNode = findNearestGraphNode(dest.coordinates);
+  if (!startNode || !endNode) return null;
+
+  // A* heuristic: haversine distance to destination (in nm)
+  const heuristic = (nodeId: string): number => {
+    const node = MARITIME_NODES[nodeId];
+    const target = MARITIME_NODES[endNode.id];
+    return haversineNm(node.coordinates[1], node.coordinates[0], target.coordinates[1], target.coordinates[0]);
+  };
+
+  // "Fastest" path — minimise distance (with optional weather penalty)
+  const fastestPath = runAStar(startNode.id, endNode.id, (edge) => {
+    let cost = edge.distance;
+    if (options?.weatherPenalty) {
+      cost *= (1 + options.weatherPenalty * 0.1);
+    }
+    return cost;
+  }, heuristic);
+
+  // "Safest" path — heavily penalise high-risk edges
+  const safePath = runAStar(startNode.id, endNode.id, (edge) => {
+    let riskMultiplier = edge.risk;
+    if (options?.avoidHighRisk && edge.risk > 1) {
+      riskMultiplier = edge.risk * 10;
+    }
+    return edge.distance * (riskMultiplier > 1 ? riskMultiplier * 5 : 1);
+  }, heuristic);
+
+  // "Economical" path — balance distance + moderate risk penalty
+  const econPath = runAStar(startNode.id, endNode.id, (edge) => {
+    let cost = edge.distance;
+    if (edge.risk > 1) {
+      cost *= (1 + (edge.risk - 1) * 2); // moderate risk penalty
+    }
+    return cost;
+  }, heuristic);
+
+  const routes: Route[] = [];
+
+  if (fastestPath) {
+    routes.push(buildRouteObject(fastestPath, origin, dest, 'route-fastest', 'Fastest Route', '#3498db'));
+  }
+
+  if (safePath && !arraysEqual(fastestPath, safePath)) {
+    routes.push(buildRouteObject(safePath, origin, dest, 'route-safe', 'Safest Route', '#2ecc71'));
+  }
+
+  if (econPath && !arraysEqual(econPath, fastestPath) && !arraysEqual(econPath, safePath)) {
+    routes.push(buildRouteObject(econPath, origin, dest, 'route-economical', 'Economical Route', '#e8a547'));
+  }
+
+  return routes.length > 0 ? routes : null;
 }
+
+// ============================================================
+// A* Implementation (uses MinHeap + precomputed adjacency)
+// ============================================================
+
+function runAStar(
+  startId: string,
+  endId: string,
+  costFn: (e: SeaEdge) => number,
+  heuristic: (id: string) => number
+): string[] | null {
+  const pq = new MinHeap();
+  const gScore: Record<string, number> = {};
+  const previous: Record<string, string | null> = {};
+
+  for (const key in MARITIME_NODES) {
+    gScore[key] = Infinity;
+    previous[key] = null;
+  }
+
+  gScore[startId] = 0;
+  pq.enqueue(startId, heuristic(startId));
+
+  while (pq.size > 0) {
+    const current = pq.dequeue();
+    if (!current) break;
+    if (current.id === endId) break;
+
+    // Use precomputed adjacency list instead of scanning all edges
+    const neighbors = ADJACENCY[current.id] || [];
+
+    for (const { neighborId, edge } of neighbors) {
+      const tentativeG = gScore[current.id] + costFn(edge);
+
+      if (tentativeG < gScore[neighborId]) {
+        previous[neighborId] = current.id;
+        gScore[neighborId] = tentativeG;
+        pq.enqueue(neighborId, tentativeG + heuristic(neighborId));
+      }
+    }
+  }
+
+  // Reconstruct path
+  if (gScore[endId] === Infinity) return null;
+
+  const path: string[] = [];
+  let curr: string | null = endId;
+  while (curr) {
+    path.unshift(curr);
+    curr = previous[curr];
+  }
+  return path;
+}
+
+// ============================================================
+// Route Object Builder (with endpoint deduplication)
+// ============================================================
+
+// Distance threshold (nm) — if origin/dest is closer than this to
+// the first/last graph node we skip the extra endpoint to avoid spikes.
+const DEDUP_THRESHOLD_NM = 30;
+
+function buildRouteObject(
+  nodeIds: string[],
+  origin: GlobalPort,
+  dest: GlobalPort,
+  id: string,
+  name: string,
+  color: string
+): Route {
+  const waypoints: [number, number][] = [];
+  const waypointNames: string[] = [];
+
+  // Conditionally add origin (skip if very close to first graph node)
+  const firstNode = MARITIME_NODES[nodeIds[0]];
+  const distToFirst = haversineNm(
+    origin.coordinates[1], origin.coordinates[0],
+    firstNode.coordinates[1], firstNode.coordinates[0]
+  );
+  if (distToFirst > DEDUP_THRESHOLD_NM) {
+    waypoints.push(origin.coordinates);
+    waypointNames.push(origin.name);
+  }
+
+  // Add the first graph node
+  waypoints.push(firstNode.coordinates);
+  waypointNames.push(firstNode.name);
+
+  // Stitch geometry through each edge
+  for (let i = 0; i < nodeIds.length - 1; i++) {
+    const uId = nodeIds[i];
+    const vId = nodeIds[i + 1];
+    const vNode = MARITIME_NODES[vId];
+
+    // Find edge via adjacency (fast)
+    const adj = ADJACENCY[uId]?.find(a => a.neighborId === vId);
+    const edge = adj?.edge;
+
+    if (edge && edge.geometry) {
+      let segmentPoints = edge.geometry;
+      // Reverse geometry if edge is defined in opposite direction
+      if (edge.from === vId && edge.to === uId) {
+        segmentPoints = [...edge.geometry].reverse();
+      }
+      // Append intermediate + endpoint, skipping first (already added as uNode)
+      segmentPoints.slice(1).forEach(pt => waypoints.push(pt));
+    } else {
+      waypoints.push(vNode.coordinates);
+    }
+    waypointNames.push(vNode.name);
+  }
+
+  // Conditionally add destination (skip if very close to last graph node)
+  const lastNode = MARITIME_NODES[nodeIds[nodeIds.length - 1]];
+  const distToLast = haversineNm(
+    dest.coordinates[1], dest.coordinates[0],
+    lastNode.coordinates[1], lastNode.coordinates[0]
+  );
+  if (distToLast > DEDUP_THRESHOLD_NM) {
+    waypoints.push(dest.coordinates);
+    waypointNames.push(dest.name);
+  }
+
+  const dist = calculateTotalDistance(waypoints);
+
+  // Risk level heuristic based on nodes traversed
+  let riskLevel: 'low' | 'medium' | 'high' = 'low';
+  if (nodeIds.includes('bab_el_mandeb') || nodeIds.includes('suez_s')) riskLevel = 'high';
+  else if (nodeIds.includes('malacca_exit')) riskLevel = 'medium';
+
+  return {
+    id,
+    name,
+    riskLevel,
+    color,
+    strokeWidth: 3,
+    waypoints,
+    waypointNames,
+    distance: dist,
+    estimatedTime: Math.round((dist / 20 / 24) * 10) / 10, // days @ ~20kts, 1 decimal
+    description: `${name} via ${nodeIds.length} waypoints`
+  };
+}
+
+// ============================================================
+// Dynamic Fallback (straight-line for disconnected graphs)
+// ============================================================
+
+function calculateDynamicRoutes(originPort: GlobalPort, destPort: GlobalPort): Route[] {
+  const waypoints: [number, number][] = [originPort.coordinates, destPort.coordinates];
+  const dist = calculateTotalDistance(waypoints);
+  return [{
+    id: 'dyn-direct',
+    name: 'Direct Route',
+    riskLevel: 'medium',
+    color: '#95a5a6',
+    strokeWidth: 1,
+    waypoints,
+    waypointNames: [originPort.name, destPort.name],
+    distance: dist,
+    estimatedTime: Math.round((dist / 15 / 24) * 10) / 10, // days @ ~15kts conservative
+    description: 'Direct calculated path'
+  }];
+}
+
+// ============================================================
+// Helpers
+// ============================================================
 
 function findNearestPort(coord: [number, number], excludeNames: Set<string> = new Set()): GlobalPort {
   let nearest = MAJOR_PORTS[0];
   let minDistance = Infinity;
   for (const port of MAJOR_PORTS) {
     if (excludeNames.has(port.name)) continue;
-    const dist = calculateDistance(coord[1], coord[0], port.coordinates[1], port.coordinates[0]);
+    const dist = haversineNm(coord[1], coord[0], port.coordinates[1], port.coordinates[0]);
     if (dist < minDistance) {
       minDistance = dist;
       nearest = port;
@@ -372,22 +410,22 @@ function findNearestPort(coord: [number, number], excludeNames: Set<string> = ne
   return nearest;
 }
 
-function calculateDynamicRoutes(originPort: GlobalPort, destPort: GlobalPort): Route[] {
-  // Simple Great Circle fallback for undefined routes
-  const waypoints: [number, number][] = [originPort.coordinates, destPort.coordinates];
-  const dist = calculateTotalDistance(waypoints);
-  return [{
-    id: "dyn-direct",
-    name: "Direct Route",
-    riskLevel: "medium",
-    color: "#95a5a6",
-    strokeWidth: 1,
-    waypoints: waypoints,
-    waypointNames: [originPort.name, destPort.name],
-    distance: dist,
-    estimatedTime: Math.round(dist / 300), // very rough
-    description: "Direct calculated path"
-  }];
+function findNearestGraphNode(coords: [number, number]): SeaNode | null {
+  let nearest: SeaNode | null = null;
+  let minDist = Infinity;
+
+  for (const key in MARITIME_NODES) {
+    const node = MARITIME_NODES[key];
+    const d = haversineNm(coords[1], coords[0], node.coordinates[1], node.coordinates[0]);
+    if (d < minDist) {
+      minDist = d;
+      nearest = node;
+    }
+  }
+  if (minDist > 3000) {
+    console.warn(`[RouteCalculator] Nearest sea node for ${coords} is far: ${minDist.toFixed(0)} nm`);
+  }
+  return nearest;
 }
 
 function calculateTotalDistance(waypoints: [number, number][]): number {
@@ -395,22 +433,36 @@ function calculateTotalDistance(waypoints: [number, number][]): number {
   for (let i = 0; i < waypoints.length - 1; i++) {
     const [lng1, lat1] = waypoints[i];
     const [lng2, lat2] = waypoints[i + 1];
-    total += calculateDistance(lat1, lng1, lat2, lng2);
+    total += haversineNm(lat1, lng1, lat2, lng2);
   }
   return Math.round(total);
 }
 
-function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
-  const R = 6371;
+/**
+ * Haversine distance in **nautical miles**.
+ * Using Earth mean radius of 3440.065 nm.
+ */
+function haversineNm(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 3440.065; // Earth radius in nautical miles
   const dLat = toRad(lat2 - lat1);
   const dLon = toRad(lon2 - lon1);
-  const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-            Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon/2) * Math.sin(dLon/2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return R * c;
 }
 
 function toRad(d: number): number {
-  return d * Math.PI / 180;
+  return (d * Math.PI) / 180;
 }
 
+function arraysEqual(a: string[] | null, b: string[] | null): boolean {
+  if (a === b) return true;
+  if (a == null || b == null) return false;
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; ++i) {
+    if (a[i] !== b[i]) return false;
+  }
+  return true;
+}

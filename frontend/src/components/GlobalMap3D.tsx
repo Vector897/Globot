@@ -6,6 +6,7 @@ import { _GlobeView as GlobeView } from '@deck.gl/core';
 import { CollisionFilterExtension } from '@deck.gl/extensions';
 import { Route } from '../utils/routeCalculator';
 import { Ship } from '../utils/shipData';
+import { densifyPathMap } from '../utils/pathDensifier';
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from './ui/tooltip';
 
 // Initial View State for Globe
@@ -46,24 +47,23 @@ const COLOR_CRISIS_GLOW: [number, number, number, number] = [239, 68, 68, 40]; /
 const COLOR_LABEL_PRIMARY: [number, number, number, number] = [180, 185, 195, 255]; // Country labels
 const COLOR_GRATICULE: [number, number, number, number] = [60, 70, 85, 30]; // Very subtle grid
 
-const NUM_SHIPS = 500;
+const NUM_SHIPS = 4;
 
 interface GlobalMap3DProps {
   origin?: any;
   destination?: any;
   onRouteSelect?: (route: Route) => void;
-  onRoutesCalculated?: (routes: Route[]) => void;
   selectedRouteFromParent?: Route | null;
+  routes?: Route[];
 }
 
 export function GlobalMap3D({ 
     origin, 
     destination, 
     onRouteSelect, 
-    onRoutesCalculated, 
-    selectedRouteFromParent 
+    selectedRouteFromParent,
+    routes
 }: GlobalMap3DProps) {
-  const [landData, setLandData] = useState<any[]>([]);
   const [routeData, setRouteData] = useState<any[]>([]);
   const [paths, setPaths] = useState<any>({});
   const [ships, setShips] = useState<any[]>([]);
@@ -104,19 +104,7 @@ export function GlobalMap3D({
   }, [shipSpeed]);
 
   useEffect(() => {
-    // 1. Fetch Land Cells
-    fetch('/data/land_cells.json')
-      .then(resp => resp.json())
-      .then(data => {
-        const list = Object.keys(data).map(h => ({
-          hex: h,
-          type: data[h].t,
-          country: data[h].c
-        }));
-        setLandData(list);
-      });
-
-    // 2. Fetch Route Cells
+    // 1. Static Data Fetches
     fetch('/data/route_cells.json')
       .then(resp => resp.json())
       .then(data => {
@@ -127,20 +115,10 @@ export function GlobalMap3D({
         setRouteData(list);
       });
 
-    // 3. Fetch Paths and Init Ships
-    fetch('/data/paths.json')
-      .then(resp => resp.json())
-      .then(pathData => {
-        setPaths(pathData);
-        initShips(pathData);
-      });
-
-    // 4. Fetch Labels
     fetch('/data/country_labels.json')
       .then(resp => resp.json())
       .then(data => setLabels(data));
 
-    // 5. Fetch Straits/Canals
     fetch('/data/straits_cells.json')
       .then(resp => resp.json())
       .then(data => {
@@ -151,12 +129,10 @@ export function GlobalMap3D({
         setStraitsData(list);
       });
 
-    // 6. Fetch Strait Labels
     fetch('/data/strait_labels.json')
       .then(resp => resp.json())
       .then(data => setStraitLabels(data));
 
-    // 7. Fetch Port Cells
     fetch('/data/ports_cells.json')
       .then(resp => resp.json())
       .then(data => {
@@ -167,12 +143,10 @@ export function GlobalMap3D({
         setPortsData(list);
       });
 
-    // 8. Fetch Port Labels
     fetch('/data/port_labels.json')
       .then(resp => resp.json())
       .then(data => setPortLabels(data));
 
-    // 9. Fetch All Crisis Zones
     fetch('/data/all_crisis_zones.json')
       .then(resp => resp.json())
       .then(data => setAllCrisisData(data));
@@ -188,6 +162,33 @@ export function GlobalMap3D({
       if (requestRef.current) cancelAnimationFrame(requestRef.current);
     };
   }, []);
+
+  // 2. Dynamic Route Calculation — routes are computed once in DemoPage and passed via props
+  useEffect(() => {
+    if (routes && routes.length > 0) {
+       const newPaths: any = {};
+       routes.forEach(r => {
+           newPaths[r.id] = r.waypoints;
+       });
+       const densifiedPaths = densifyPathMap(newPaths);
+       setPaths(densifiedPaths);
+       // Only spawn ships on the SELECTED route if one is selected, else on all
+       if (selectedRouteFromParent) {
+           initShips({ [selectedRouteFromParent.id]: densifiedPaths[selectedRouteFromParent.id] });
+       } else {
+           initShips(densifiedPaths);
+       }
+    } else {
+        // Default Mode: No routes from parent — show all global routes
+        fetch('/data/paths.json')
+          .then(resp => resp.json())
+          .then(pathData => {
+            const densifiedPaths = densifyPathMap(pathData);
+            setPaths(densifiedPaths);
+            initShips(densifiedPaths);
+          });
+    }
+  }, [routes, selectedRouteFromParent]);
 
   const initShips = (pathData: any) => {
     const pathKeys = Object.keys(pathData);
@@ -252,11 +253,19 @@ export function GlobalMap3D({
       const lon = p1[0] + (p2[0] - p1[0]) * ratio;
       const lat = p1[1] + (p2[1] - p1[1]) * ratio;
 
+      // Calculate Bearing for Arrow
+      const dLon = p2[0] - p1[0];
+      const dLat = p2[1] - p1[1];
+      const angle = Math.atan2(dLat, dLon); // Radians
+
+      // Convert atan2 angle to deck.gl icon rotation (clockwise degrees from north)
+      const angleDeg = 90 - (angle * 180 / Math.PI);
+
       return {
         position: [lon, lat],
-        pathId: ship.pathId, // Pass route name for crisis coloring
-        color: [255, 255, 0],
-        angle: 0 // Optional: compute heading
+        pathId: ship.pathId,
+        angle,
+        angleDeg,
       };
     }).filter(s => s !== null);
   };
@@ -377,38 +386,31 @@ export function GlobalMap3D({
         lineWidthMaxPixels: 1.5,
     }),
 
-    // 3. Shipping Routes (PathLayer - clean lines)
-    ...Object.entries(paths).map(([routeName, pathCoords]: [string, any]) => 
-      new PathLayer({
+    // 3. Shipping Routes (PathLayer)
+    ...Object.entries(paths).map(([routeName, pathCoords]: [string, any]) => {
+      const isSelected = selectedRouteFromParent ? selectedRouteFromParent.id === routeName : true;
+      return new PathLayer({
         id: `route-${routeName.replace(/\s+/g, '-')}`,
         data: [{ path: pathCoords, name: routeName }],
         getPath: (d: any) => d.path,
-        getColor: COLOR_ROUTE_DEFAULT,
-        getWidth: 30000,
-        widthMinPixels: 1.5,
-        widthMaxPixels: 4,
+        getColor: isSelected ? COLOR_ROUTE_ACTIVE : COLOR_ROUTE_DEFAULT,
+        getWidth: isSelected ? 30000 : 15000,
+        widthMinPixels: 1,
+        widthMaxPixels: 3,
         capRounded: true,
         jointRounded: true,
-      pickable: true,
-      })
-    ),
-
-    // 4. Port markers (glow effect)
-    new ScatterplotLayer({
-      id: 'port-glow-layer',
-      data: portLabels,
-      pickable: false,
-      opacity: 0.4,
-      stroked: false,
-      filled: true,
-      radiusScale: 1,
-      radiusMinPixels: 8,
-      radiusMaxPixels: 16,
-      getPosition: (d: any) => d.coordinates,
-      getFillColor: COLOR_PORT_GLOW,
+        pickable: true,
+        // @ts-ignore
+        onClick: () => {
+          if (onRouteSelect) {
+            const routeObj = routes?.find(r => r.id === routeName);
+            if (routeObj) onRouteSelect(routeObj);
+          }
+        }
+      });
     }),
 
-    // 4b. Port markers (core dots)
+    // 4. Port markers
     new ScatterplotLayer({
       id: 'port-markers',
       data: portLabels,
@@ -441,7 +443,7 @@ export function GlobalMap3D({
       getFillColor: COLOR_STRAIT,
       getLineColor: [28, 33, 40, 255],
     }),
-  ], [paths, portLabels, straitLabels]); // Dependencies for static layers
+  ], [paths, portLabels, straitLabels, selectedRouteFromParent, routes, onRouteSelect]); // Dependencies for static layers
 
   // Memoize Text Layers separately (depend on labels, labelScale, and currentZoom)
   const textLayers = useMemo(() => [
@@ -566,6 +568,8 @@ export function GlobalMap3D({
   ], [visibleLabels, straitLabels, portLabels, labelScale, currentZoom]);
 
   // Dynamic Layers (Recreate on every render mainly due to animTime/ships update)
+  const currentShipData = getShipData();
+
   const dynamicLayers = [
     // 6. Crisis Zone Overlay (Translucent pulsing area)
     new H3HexagonLayer({
@@ -598,7 +602,7 @@ export function GlobalMap3D({
     // 7. Ships glow effect
     new ScatterplotLayer({
       id: 'ship-glow-layer',
-      data: getShipData(),
+      data: currentShipData,
       pickable: false,
       opacity: 0.5,
       stroked: false,
@@ -624,35 +628,19 @@ export function GlobalMap3D({
       }
     }),
 
-    // 7b. Ships (core markers)
+    // 7b. Ships (white dots)
     new ScatterplotLayer({
-      id: 'ship-layer',
-      data: getShipData(),
+      id: 'ship-dots',
+      data: currentShipData,
       pickable: true,
       opacity: 1,
-      stroked: true,
+      stroked: false,
       filled: true,
-      radiusScale: 8000 * (shipSize / 5),
+      radiusScale: 15000 * (shipSize / 5),
       radiusMinPixels: 2 + shipSize,
-      radiusMaxPixels: 4 + shipSize * 1.5,
-      lineWidthMinPixels: 0.5,
+      radiusMaxPixels: 4 + shipSize * 2,
       getPosition: (d: any) => d.position,
-      getFillColor: (d: any) => {
-        if (d.pathId) {
-          for (const key of Object.keys(activeCrises)) {
-            if (activeCrises[key] && allCrisisData[key]) {
-              const affected = allCrisisData[key].affected_routes || [];
-              const isAffected = affected.some((r: any) => d.pathId.includes(r));
-              if (isAffected) return COLOR_CRISIS;
-            }
-          }
-        }
-        return COLOR_SHIP;
-      },
-      getLineColor: [28, 33, 40, 200],
-      updateTriggers: {
-        getFillColor: [activeCrises, allCrisisData]
-      }
+      getFillColor: COLOR_SHIP,
     })
   ];
 

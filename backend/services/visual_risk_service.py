@@ -17,11 +17,13 @@ from pathlib import Path
 from datetime import datetime
 import json
 import os
+import time
 
 from config import get_settings
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
+DEBUG_LOG_PATH = "/Users/timothylin/Globot/.cursor/debug.log"
 
 
 @dataclass
@@ -191,6 +193,21 @@ If no risks are detected, return: {"risks": [], "raw_analysis": "No supply chain
         self.base_url = "https://generativelanguage.googleapis.com/v1beta"
         self._client: Optional[httpx.AsyncClient] = None
         logger.info(f"VisualRiskAnalyzer initialized (Gemini: {bool(self.api_key)}, Maps: {bool(self.maps_api_key)})")
+
+    def _agent_debug_log(self, run_id: str, hypothesis_id: str, location: str, message: str, data: Dict[str, Any]) -> None:
+        try:
+            payload = {
+                "runId": run_id,
+                "hypothesisId": hypothesis_id,
+                "location": location,
+                "message": message,
+                "data": data,
+                "timestamp": int(time.time() * 1000),
+            }
+            with open(DEBUG_LOG_PATH, "a", encoding="utf-8") as f:
+                f.write(json.dumps(payload, ensure_ascii=True) + "\n")
+        except Exception:
+            pass
     
     async def _get_client(self) -> httpx.AsyncClient:
         if self._client is None or self._client.is_closed:
@@ -203,6 +220,21 @@ If no risks are detected, return: {"risks": [], "raw_analysis": "No supply chain
     
     async def download_satellite_image(self, lat: float, lon: float, zoom: int = 14) -> Optional[bytes]:
         """Download satellite image from Google Static Maps API"""
+        # region agent log
+        self._agent_debug_log(
+            "pre-fix",
+            "H1",
+            "services/visual_risk_service.py:download_satellite_image:entry",
+            "download_satellite_image called",
+            {
+                "lat": lat,
+                "lon": lon,
+                "zoom": zoom,
+                "has_maps_api_key": bool(self.maps_api_key),
+                "maps_key_equals_gemini_key": bool(self.maps_api_key and self.api_key and self.maps_api_key == self.api_key),
+            },
+        )
+        # endregion agent log
         if not self.maps_api_key:
             logger.warning("No Maps API key for satellite image download")
             return None
@@ -219,6 +251,15 @@ If no risks are detected, return: {"risks": [], "raw_analysis": "No supply chain
         try:
             client = await self._get_client()
             response = await client.get(url, params=params)
+            # region agent log
+            self._agent_debug_log(
+                "pre-fix",
+                "H2",
+                "services/visual_risk_service.py:download_satellite_image:after_get",
+                "google static maps response",
+                {"status_code": response.status_code, "content_type": response.headers.get("content-type", "")},
+            )
+            # endregion agent log
             if response.status_code == 200:
                 logger.info(f"Fetched satellite image from Google Maps: 200 OK")
                 return response.content
@@ -248,6 +289,22 @@ If no risks are detected, return: {"risks": [], "raw_analysis": "No supply chain
         Returns:
             VisualRiskResult with detected risks
         """
+        # region agent log
+        self._agent_debug_log(
+            "pre-fix",
+            "H3",
+            "services/visual_risk_service.py:analyze_image:entry",
+            "analyze_image called",
+            {
+                "has_image_path": bool(image_path),
+                "has_image_bytes": bool(image_bytes),
+                "mime_type": mime_type,
+                "has_coordinates": bool(coordinates),
+                "has_gemini_key": bool(self.api_key),
+                "has_maps_key": bool(self.maps_api_key),
+            },
+        )
+        # endregion agent log
         # Load image bytes from coordinates if provided and valid
         if coordinates and not image_bytes and not image_path:
             logger.info(f"Fetching satellite image for coordinates: {coordinates}")
@@ -271,6 +328,15 @@ If no risks are detected, return: {"risks": [], "raw_analysis": "No supply chain
         
         if not image_bytes:
             logger.warning("No image provided (and fetch failed), returning demo result")
+            # region agent log
+            self._agent_debug_log(
+                "pre-fix",
+                "H4",
+                "services/visual_risk_service.py:analyze_image:no_image_branch",
+                "falling back because no image bytes",
+                {"had_coordinates": bool(coordinates), "had_image_path": bool(image_path)},
+            )
+            # endregion agent log
             return self._get_demo_result()
         
         # Check if API is configured
@@ -281,6 +347,15 @@ If no risks are detected, return: {"risks": [], "raw_analysis": "No supply chain
         # Call Gemini Vision API
         try:
             result = await self._call_gemini_vision(image_bytes, mime_type)
+            # region agent log
+            self._agent_debug_log(
+                "pre-fix",
+                "H5",
+                "services/visual_risk_service.py:analyze_image:exit_success",
+                "analyze_image returning vision result",
+                {"risk_type": result.risk_type, "source_type": result.source_type},
+            )
+            # endregion agent log
             return result
         except Exception as e:
             logger.error(f"Gemini Vision API error: {e}")
