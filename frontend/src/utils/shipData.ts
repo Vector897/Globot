@@ -12,7 +12,8 @@ export interface Ship {
   destination: string;
   eta: string;
   riskFactor: string;
-  
+  position?: [number, number]; // [Longitude, Latitude]
+
   // Simulation parameters
   progress: number; // 0-1 (Starting position on path)
   direction: 1 | -1; // 1 = forward, -1 = backward
@@ -70,7 +71,7 @@ export const MOCK_SHIPS: Ship[] = [
     progress: 0.4,
     direction: 1
   },
-   {
+  {
     id: 'ship-4',
     name: 'MAERSK MC-KINNEY',
     type: 'Container',

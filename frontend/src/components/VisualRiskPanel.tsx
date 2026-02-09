@@ -93,7 +93,7 @@ export function VisualRiskPanel({
               Gemini Vision
             </span>
           </div>
-          
+
           {analysis && severityInfo && (
             <span
               className="text-[10px] font-bold px-2 py-1 rounded-sm"
@@ -140,7 +140,7 @@ export function VisualRiskPanel({
                   animate={{ top: ["0%", "100%"] }}
                   transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
                 />
-                
+
                 {/* Grid overlay */}
                 <div
                   className="absolute inset-0 opacity-20"
@@ -188,7 +188,7 @@ export function VisualRiskPanel({
                 </div>
                 <div>
                   <h3 className="text-sm font-medium text-white/90 mb-1">
-                    {analysis.risk_type.replace(/_/g, " ").toUpperCase()}
+                    {(analysis.risk_type || 'unknown_risk').replace(/_/g, " ").toUpperCase()}
                   </h3>
                   <p className="text-xs text-white/70 leading-relaxed">
                     {analysis.description}

@@ -46,8 +46,8 @@ interface AgentWorkflowProps {
   onRunMarketSentinel?: () => void;
 }
 
-export const AgentWorkflow: React.FC<AgentWorkflowProps> = ({ 
-  currentTime, 
+export const AgentWorkflow: React.FC<AgentWorkflowProps> = ({
+  currentTime,
   isLive,
   marketSentinelData,
   marketSentinelLoading,
@@ -59,32 +59,32 @@ export const AgentWorkflow: React.FC<AgentWorkflowProps> = ({
   // Helper to get Market Sentinel status based on real API data
   const getMarketSentinelStatus = (): { status: AgentStatus; lastAction: string } => {
     if (marketSentinelLoading) {
-      return { 
-        status: "thinking", 
-        lastAction: "Analyzing geopolitical events and supply chain risks..." 
+      return {
+        status: "thinking",
+        lastAction: "Analyzing geopolitical events and supply chain risks..."
       };
     }
-    
+
     if (marketSentinelError) {
-      return { 
-        status: "alert", 
-        lastAction: `Error: ${marketSentinelError}` 
+      return {
+        status: "alert",
+        lastAction: `Error: ${marketSentinelError}`
       };
     }
-    
+
     if (marketSentinelData?.signal_packet) {
       const signal = marketSentinelData.signal_packet;
-      const severityStatus: AgentStatus = 
-        signal.severity === 'CRITICAL' || signal.severity === 'HIGH' 
-          ? "alert" 
+      const severityStatus: AgentStatus =
+        signal.severity === 'CRITICAL' || signal.severity === 'HIGH'
+          ? "alert"
           : "completed";
-      
+
       return {
         status: severityStatus,
         lastAction: signal.summary || `Signal ${signal.signal_id}: ${signal.severity} severity detected`,
       };
     }
-    
+
     return {
       status: "idle",
       lastAction: "Monitoring global news feeds for supply chain disruptions",
@@ -95,18 +95,18 @@ export const AgentWorkflow: React.FC<AgentWorkflowProps> = ({
     if (!isLive) return;
 
     const t = currentTime % 60;
-    
+
     // Use real Market Sentinel data if available, otherwise fallback to simulation
-    const sentinelState = marketSentinelData || marketSentinelLoading 
+    const sentinelState = marketSentinelData || marketSentinelLoading
       ? getMarketSentinelStatus()
       : {
-          status: (t > 5 && t < 15 ? "thinking" : t >= 15 ? "alert" : "idle") as AgentStatus,
-          lastAction: t >= 15 
-            ? "Detected 47% increase in North Atlantic corridor risk indicators"
-            : t > 5 
-              ? "Scanning Reuters, Bloomberg for supply chain disruptions..."
-              : "Monitoring global news feeds for supply chain disruptions",
-        };
+        status: (t > 5 && t < 15 ? "thinking" : t >= 15 ? "alert" : "idle") as AgentStatus,
+        lastAction: t >= 15
+          ? "Detected 47% increase in North Atlantic corridor risk indicators"
+          : t > 5
+            ? "Scanning Reuters, Bloomberg for supply chain disruptions..."
+            : "Monitoring global news feeds for supply chain disruptions",
+      };
 
     // Derive other agent states based on Market Sentinel results
     const hasRealSignal = marketSentinelData?.signal_packet;
@@ -120,20 +120,20 @@ export const AgentWorkflow: React.FC<AgentWorkflowProps> = ({
       },
       {
         id: "risk_hedger",
-        status: hasRealSignal 
+        status: hasRealSignal
           ? (isHighRisk ? "alert" : "completed")
           : (t > 15 && t < 25 ? "alert" : t >= 25 && t < 35 ? "thinking" : t >= 35 ? "completed" : "idle"),
         lastAction: hasRealSignal
-          ? (isHighRisk 
-              ? `CRITICAL: ${marketSentinelData.signal_packet.affected_lanes.length} lanes affected`
-              : "Financial exposure analysis complete")
+          ? (isHighRisk
+            ? `CRITICAL: ${marketSentinelData.signal_packet.affected_lanes.length} lanes affected`
+            : "Financial exposure analysis complete")
           : (t >= 35
-              ? "Recalculated portfolio exposure across alternative routes"
-              : t >= 25
-                ? "Analyzing financial exposure and hedging options..."
-                : t > 15
-                  ? "CRITICAL: Elevated risk detected in primary corridor"
-                  : "Standing by for financial exposure analysis"),
+            ? "Recalculated portfolio exposure across alternative routes"
+            : t >= 25
+              ? "Analyzing financial exposure and hedging options..."
+              : t > 15
+                ? "CRITICAL: Elevated risk detected in primary corridor"
+                : "Standing by for financial exposure analysis"),
       },
       {
         id: "logistics",
@@ -142,13 +142,13 @@ export const AgentWorkflow: React.FC<AgentWorkflowProps> = ({
           : (t > 28 && t < 40 ? "thinking" : t >= 40 ? "completed" : "idle"),
         lastAction: hasRealSignal
           ? (isHighRisk
-              ? "Calculating alternative routes for affected lanes..."
-              : "Route optimization complete")
+            ? "Calculating alternative routes for affected lanes..."
+            : "Route optimization complete")
           : (t >= 40
-              ? "Secured alternative carrier capacity for 12 high-priority shipments"
-              : t > 28
-                ? "Negotiating with port authorities and carriers..."
-                : "Ready to optimize shipping routes"),
+            ? "Secured alternative carrier capacity for 12 high-priority shipments"
+            : t > 28
+              ? "Negotiating with port authorities and carriers..."
+              : "Ready to optimize shipping routes"),
       },
       {
         id: "compliance",
@@ -158,10 +158,10 @@ export const AgentWorkflow: React.FC<AgentWorkflowProps> = ({
         lastAction: hasRealSignal
           ? `Validated against ${marketSentinelData.signal_packet.entities.length} monitored entities`
           : (t >= 38
-              ? "Validated alternative routes against 89 international regulations"
-              : t > 30
-                ? "Checking OFAC, UN sanctions lists for route compliance..."
-                : "Awaiting regulatory validation requests"),
+            ? "Validated alternative routes against 89 international regulations"
+            : t > 30
+              ? "Checking OFAC, UN sanctions lists for route compliance..."
+              : "Awaiting regulatory validation requests"),
       },
       {
         id: "debate",
@@ -170,13 +170,13 @@ export const AgentWorkflow: React.FC<AgentWorkflowProps> = ({
           : (t > 40 && t < 50 ? "thinking" : t >= 50 ? "completed" : "idle"),
         lastAction: hasRealSignal
           ? (marketSentinelData.signal_packet.confidence < 0.8
-              ? `Reviewing signal confidence: ${(marketSentinelData.signal_packet.confidence * 100).toFixed(0)}%`
-              : "Signal validated with high confidence")
+            ? `Reviewing signal confidence: ${(marketSentinelData.signal_packet.confidence * 100).toFixed(0)}%`
+            : "Signal validated with high confidence")
           : (t >= 50
-              ? "Southern route cost estimates appear optimistic"
-              : t > 40
-                ? "Challenging decision logic and assumptions..."
-                : "Ready for adversarial review"),
+            ? "Southern route cost estimates appear optimistic"
+            : t > 40
+              ? "Challenging decision logic and assumptions..."
+              : "Ready for adversarial review"),
       },
     ]);
   }, [currentTime, isLive, marketSentinelData, marketSentinelLoading, marketSentinelError]);
@@ -203,7 +203,7 @@ export const AgentWorkflow: React.FC<AgentWorkflowProps> = ({
             Multi-Agent Collaboration
           </h2>
         </div>
-        
+
         {onRunMarketSentinel && (
           <button
             onClick={onRunMarketSentinel}
@@ -218,7 +218,7 @@ export const AgentWorkflow: React.FC<AgentWorkflowProps> = ({
 
       {/* Signal Alert Banner */}
       {marketSentinelData?.signal_packet && (
-        <div 
+        <div
           className="mb-4 p-3 rounded-sm border"
           style={{
             backgroundColor: `${getSeverityColor(marketSentinelData.signal_packet.severity)}15`,
@@ -226,7 +226,7 @@ export const AgentWorkflow: React.FC<AgentWorkflowProps> = ({
           }}
         >
           <div className="flex items-start justify-between gap-2 mb-2">
-            <span 
+            <span
               className="text-[10px] font-mono px-1.5 py-0.5 rounded-sm"
               style={{
                 backgroundColor: `${getSeverityColor(marketSentinelData.signal_packet.severity)}30`,

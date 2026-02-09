@@ -17,6 +17,7 @@ import { Ship } from '../utils/shipData';
 import { ShipDetailsCard } from '../components/ShipDetailsCard';
 import { Home, Globe, Map, RefreshCw, Shield, Brain, ChevronRight, ChevronLeft, ChevronUp, ChevronDown, Keyboard, X } from 'lucide-react';
 import { useHeader } from '../context/HeaderContext';
+import { toast } from 'sonner';
 
 // Keyboard shortcuts configuration
 const KEYBOARD_SHORTCUTS = [
@@ -301,6 +302,7 @@ export const DemoPage: React.FC = () => {
         break;
 
       case 'COT_STEP':
+        if (!lastEvent.data) break;
         setCotSteps(prev => {
           // Avoid duplicates if using React.StrictMode or re-renders
           if (prev.find(s => s.step_id === lastEvent.data.step_id)) return prev;
@@ -429,6 +431,11 @@ export const DemoPage: React.FC = () => {
         setVisualRiskAnalyzing(false);
         setVisualRiskAnalysis(lastEvent.analysis);
         break;
+
+      case 'ERROR':
+        console.error("Backend Error:", lastEvent.message);
+        toast.error(`Analysis Error: ${lastEvent.message}`);
+        break;
     }
   }, [events]);
 
@@ -442,12 +449,19 @@ export const DemoPage: React.FC = () => {
     return 'Stabilization & review';
   }, [currentTime]);
 
-  const startBackendDemo = async () => {
+  const startBackendDemo = async (originPort?: GlobalPort, destinationPort?: GlobalPort) => {
     try {
+      // Use mock demo only for the specific Shanghai -> Los Angeles route
+      const isMockDemo = originPort?.name === 'Shanghai' && destinationPort?.name === 'Los Angeles';
+
       const response = await fetch('http://localhost:8000/api/v2/demo/start', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ scenario: 'crisis_455pm' }),
+        body: JSON.stringify({
+          scenario: isMockDemo ? 'crisis_455pm' : 'dynamic',
+          origin_port: originPort?.name,
+          destination_port: destinationPort?.name
+        }),
       });
 
       if (response.ok) {
@@ -497,7 +511,7 @@ export const DemoPage: React.FC = () => {
 
     setCurrentTime(0);
 
-    await startBackendDemo();
+    await startBackendDemo(originPort, destinationPort);
   };
 
   // ...
@@ -817,11 +831,11 @@ export const DemoPage: React.FC = () => {
 
       {/* Keyboard Shortcuts Help Modal */}
       {showKeyboardHelp && (
-        <div 
+        <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
           onClick={() => setShowKeyboardHelp(false)}
         >
-          <div 
+          <div
             className="bg-[#0f1621] border border-[#1a2332] rounded-lg p-6 max-w-md w-full mx-4 shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
@@ -840,10 +854,10 @@ export const DemoPage: React.FC = () => {
                 <X className="w-4 h-4" />
               </button>
             </div>
-            
+
             <div className="space-y-3">
               {KEYBOARD_SHORTCUTS.map((shortcut, index) => (
-                <div 
+                <div
                   key={shortcut.key}
                   className="flex items-center justify-between py-2 border-b border-[#1a2332] last:border-0"
                 >
@@ -854,7 +868,7 @@ export const DemoPage: React.FC = () => {
                 </div>
               ))}
             </div>
-            
+
             <p className="mt-4 text-xs text-white/40 text-center">
               Press <kbd className="px-1 py-0.5 bg-[#1a2332] rounded text-[10px] font-mono">?</kbd> anytime to show this help
             </p>
