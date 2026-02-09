@@ -2,7 +2,10 @@
 FastAPI Main Application
 """
 from fastapi import FastAPI, Depends, HTTPException, BackgroundTasks, Request
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
+import os
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import List, Optional, Dict, Any
@@ -655,6 +658,19 @@ def classify_customer_bg(customer_id: int, db: Session):
     except Exception as e:
         print(f"Background classification failed: {e}")
 
-if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    port = int(os.getenv("PORT", 8000))
+    uvicorn.run(app, host="0.0.0.0", port=port)
+
+# Mount static files and catch-all route
+# This should be at the end to avoid intercepting API routes
+static_path = os.path.join(os.path.dirname(__file__), "static")
+if os.path.exists(static_path):
+    app.mount("/", StaticFiles(directory=static_path, html=True), name="static")
+
+@app.get("/{full_path:path}")
+async def catch_all(full_path: str):
+    index_file = os.path.join(static_path, "index.html")
+    if os.path.exists(index_file):
+        return FileResponse(index_file)
+    return {"message": "API is running, but frontend not found. Build the frontend and place it in 'backend/static'."}
