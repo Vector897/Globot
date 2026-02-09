@@ -1,8 +1,8 @@
 # Core Web Framework
 fastapi==0.115.6
-uvicorn[standard]==0.34.3
-starlette==0.41.3
-sse-starlette==3.0.3
+uvicorn[standard]>=0.30.0
+starlette>=0.40.0
+sse-starlette>=3.0.0
 python-multipart==0.0.21
 aiofiles==24.1.0
 
@@ -19,7 +19,7 @@ alembic==1.13.1
 
 # Vector Database
 chromadb>=1.1.0
-pysqlite3-binary==0.5.4
+pysqlite3-binary==0.5.4; platform_system == "Linux"
 
 # Data Validation
 pydantic==2.11.10
@@ -30,8 +30,8 @@ numpy>=1.26.0
 
 # AI/LLM - Core
 crewai==1.7.2
-openai
-litellm
+openai>=1.83.0,<2.0.0
+litellm>=1.75.0,<1.80.0
 google-generativeai==0.8.6
 
 # AI/LLM - LangChain (loosened for resolution)
