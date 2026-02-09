@@ -27,13 +27,39 @@ except ImportError:
 
 
 if HAS_CREWAI:
+    from pydantic import BaseModel, Field
     from services.maritime_knowledge_base import get_maritime_knowledge_base
     from services.compliance_service import ComplianceService
+
+    class MaritimeRAGSchema(BaseModel):
+        """Input for MaritimeRAGTool"""
+        query: str = Field(..., description="The search query for maritime regulations")
+        port_code: Optional[str] = Field(None, description="Optional port code filter")
+        region: Optional[str] = Field(None, description="Optional region filter")
+        regulation_type: Optional[str] = Field(None, description="Optional regulation type filter")
+        vessel_type: Optional[str] = Field(None, description="Optional vessel type filter")
+        top_k: int = Field(10, description="Number of results to return")
+
+    class PortInfoSchema(BaseModel):
+        """Input for PortInfoTool"""
+        port_code: str = Field(..., description="UN/LOCODE format port code")
+        vessel_type: Optional[str] = Field(None, description="Vessel type for filtering requirements")
+
+    class DocumentCheckSchema(BaseModel):
+        """Input for DocumentCheckTool"""
+        vessel_documents_json: Any = Field(..., description="JSON string or list/dict of vessel's documents")
+        required_documents_json: Any = Field(..., description="JSON string or list of required document types")
+
+    class RouteAnalysisSchema(BaseModel):
+        """Input for RouteAnalysisTool"""
+        route_ports_json: Any = Field(..., description="JSON array or list of port codes")
+        vessel_type: str = Field("container", description="Type of vessel")
 
     class MaritimeRAGTool(BaseTool):
         """Tool for querying maritime regulations knowledge base"""
 
         name: str = "maritime_regulations_search"
+        args_schema: Any = MaritimeRAGSchema
         description: str = """
         Search the maritime regulations knowledge base for laws, conventions, and requirements.
 
@@ -60,10 +86,20 @@ if HAS_CREWAI:
             region: Optional[str] = None,
             regulation_type: Optional[str] = None,
             vessel_type: Optional[str] = None,
-            top_k: int = 5
+            top_k: int = 10,
+            **kwargs
         ) -> str:
             """Execute the search"""
             try:
+                # Handle CrewAI passing all args as a dict to the first parameter
+                if isinstance(query, dict) and "query" in query:
+                    port_code = query.get("port_code", port_code)
+                    region = query.get("region", region)
+                    regulation_type = query.get("regulation_type", regulation_type)
+                    vessel_type = query.get("vessel_type", vessel_type)
+                    top_k = query.get("top_k", top_k)
+                    query = query["query"]
+                
                 kb = get_maritime_knowledge_base()
 
                 # Build filters
@@ -93,7 +129,7 @@ if HAS_CREWAI:
                 for i, result in enumerate(results, 1):
                     source = result.metadata.get("source_convention", result.source)
                     output_lines.append(f"[{i}] Source: {source}")
-                    output_lines.append(f"    Content: {result.content[:300]}...")
+                    output_lines.append(f"    Content: {result.content[:1500]}...")
                     if result.metadata:
                         meta_str = ", ".join(f"{k}={v}" for k, v in result.metadata.items()
                                              if k not in ["source_convention"])
@@ -112,6 +148,7 @@ if HAS_CREWAI:
         """Tool for getting port information and requirements"""
 
         name: str = "port_info"
+        args_schema: Any = PortInfoSchema
         description: str = """
         Get detailed information about a specific port including:
         - Port State Control regime (Paris MOU, Tokyo MOU, etc.)
@@ -127,10 +164,16 @@ if HAS_CREWAI:
         def _run(
             self,
             port_code: str,
-            vessel_type: Optional[str] = None
+            vessel_type: Optional[str] = None,
+            **kwargs
         ) -> str:
             """Get port information"""
             try:
+                # Handle CrewAI passing all args as a dict to the first parameter
+                if isinstance(port_code, dict) and "port_code" in port_code:
+                    vessel_type = port_code.get("vessel_type", vessel_type)
+                    port_code = port_code["port_code"]
+                
                 kb = get_maritime_knowledge_base()
 
                 # Search for port-specific info
@@ -154,7 +197,7 @@ if HAS_CREWAI:
                 output_lines.append("\nAPPLICABLE REGULATIONS:")
                 if port_results:
                     for result in port_results[:5]:
-                        output_lines.append(f"- {result.content[:200]}...")
+                        output_lines.append(f"- {result.content[:1000]}...")
                         output_lines.append(f"  (Source: {result.metadata.get('source', result.source)})")
                 else:
                     output_lines.append("- No specific regulations found in database")
@@ -179,6 +222,7 @@ if HAS_CREWAI:
         """Tool for checking document compliance"""
 
         name: str = "document_check"
+        args_schema: Any = DocumentCheckSchema
         description: str = """
         Check what documents a vessel has and identify gaps.
 
@@ -190,13 +234,20 @@ if HAS_CREWAI:
 
         def _run(
             self,
-            vessel_documents_json: str,
-            required_documents_json: str
+            vessel_documents_json: Any,
+            required_documents_json: Any,
+            **kwargs
         ) -> str:
             """Check documents against requirements"""
             try:
-                vessel_docs = json.loads(vessel_documents_json)
-                required_docs = json.loads(required_documents_json)
+                # Handle CrewAI passing all args as a dict to the first parameter
+                if isinstance(vessel_documents_json, dict) and "vessel_documents_json" in vessel_documents_json:
+                    required_documents_json = vessel_documents_json.get("required_documents_json", required_documents_json)
+                    vessel_documents_json = vessel_documents_json["vessel_documents_json"]
+                
+                # Handle input that might already be list/dict from newer CrewAI
+                vessel_docs = vessel_documents_json if isinstance(vessel_documents_json, (list, dict)) else json.loads(vessel_documents_json)
+                required_docs = required_documents_json if isinstance(required_documents_json, list) else json.loads(required_documents_json)
 
                 # Build document type set from vessel docs
                 available_types = set()
@@ -253,6 +304,7 @@ if HAS_CREWAI:
         """Tool for analyzing route compliance"""
 
         name: str = "route_analysis"
+        args_schema: Any = RouteAnalysisSchema
         description: str = """
         Analyze a shipping route to identify all applicable regulations and requirements.
 
@@ -265,12 +317,19 @@ if HAS_CREWAI:
 
         def _run(
             self,
-            route_ports_json: str,
-            vessel_type: str = "container"
+            route_ports_json: Any,
+            vessel_type: str = "container",
+            **kwargs
         ) -> str:
             """Analyze route compliance"""
             try:
-                port_codes = json.loads(route_ports_json)
+                # Handle CrewAI passing all args as a dict to the first parameter
+                if isinstance(route_ports_json, dict) and "route_ports_json" in route_ports_json:
+                    vessel_type = route_ports_json.get("vessel_type", vessel_type)
+                    route_ports_json = route_ports_json["route_ports_json"]
+                
+                # Handle input that might already be a list
+                port_codes = route_ports_json if isinstance(route_ports_json, list) else json.loads(route_ports_json)
 
                 if not port_codes:
                     return "No ports provided in route"
@@ -294,7 +353,7 @@ if HAS_CREWAI:
                     if port_results:
                         output_lines.append("Regulations:")
                         for result in port_results[:2]:
-                            output_lines.append(f"  - {result.content[:150]}...")
+                            output_lines.append(f"  - {result.content[:1000]}...")
 
                     if required_docs:
                         output_lines.append("Required Documents:")

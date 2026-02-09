@@ -55,20 +55,28 @@ class MaritimeKnowledgeBase:
 
         # Initialize Gemini embeddings
         self.embeddings = GoogleGenerativeAIEmbeddings(
-            model="gemini-embedding-001",
+            model="models/gemini-embedding-001",
             google_api_key=settings.google_api_key
         )
 
         # Create a Chroma collection for each defined collection
         for collection_name in self.COLLECTIONS.keys():
-            self.collections[collection_name] = Chroma(
-                collection_name=collection_name,
-                embedding_function=self.embeddings,
-                chroma_cloud_api_key=settings.chroma_api_key,
-                tenant=settings.chroma_tenant,
-                database=settings.chroma_database,
-            )
-            logger.info(f"Initialized collection: {collection_name}")
+            # Use local persistence if no cloud API key is provided
+            if not settings.chroma_api_key:
+                self.collections[collection_name] = Chroma(
+                    collection_name=collection_name,
+                    embedding_function=self.embeddings,
+                    persist_directory=settings.maritime_kb_persist_dir
+                )
+            else:
+                self.collections[collection_name] = Chroma(
+                    collection_name=collection_name,
+                    embedding_function=self.embeddings,
+                    chroma_cloud_api_key=settings.chroma_api_key,
+                    tenant=settings.chroma_tenant,
+                    database=settings.chroma_database,
+                )
+            logger.info(f"Initialized collection: {collection_name} (Local: {not settings.chroma_api_key})")
 
         # Initialize cross-encoder reranker
         self.reranker = CrossEncoder('cross-encoder/ms-marco-MiniLM-L-6-v2')
@@ -90,10 +98,18 @@ class MaritimeKnowledgeBase:
         """
         # Build query and filters
         query = f"Port requirements regulations for port {port_code}"
-        filters = {"port_code": port_code}
+        
+        # ChromaDB requires $and for multiple filters
         if vessel_type:
-            filters["vessel_type"] = vessel_type
-
+            filters = {
+                "$and": [
+                    {"port_code": port_code},
+                    {"vessel_type": vessel_type}
+                ]
+            }
+        else:
+            filters = {"port_code": port_code}
+        
         # Search across relevant collections
         results = []
         for collection_name in ["port_regulations", "psc_requirements", "customs_documentation"]:

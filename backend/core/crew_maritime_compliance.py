@@ -41,6 +41,7 @@ MARITIME_COMPLIANCE_RULES = """You MUST follow these maritime compliance rules:
 4) Confidence levels: HIGH (direct regulation match), MEDIUM (interpretation needed), LOW (unclear)
 5) Consider vessel type, flag state, and gross tonnage for applicability assessment
 6) Time-stamp findings and note any recent regulatory changes
+If specific long-form citations (e.g. Chapter X, Reg Y) are not available in search results, provide the most specific source and description found.
 Keep outputs concise and actionable.
 """
 
@@ -56,7 +57,7 @@ def _init_llm():
         # Test connection
         test_gemini_connection(api_key=settings.google_api_key)
         return LLM(
-            model="gemini/gemini-2.0-flash",
+            model="gemini/gemini-3-flash-preview",
             api_key=settings.google_api_key
         )
 
@@ -119,6 +120,8 @@ def build_maritime_compliance_crew(
         llm=llm,
         tools=tools,
         verbose=True,
+        max_iter=30,
+        max_rpm=3,
     )
 
     document_analyst = Agent(
@@ -128,6 +131,8 @@ def build_maritime_compliance_crew(
                   "document requirements, and identifying compliance gaps.",
         llm=llm,
         verbose=True,
+        max_iter=15,
+        max_rpm=3,
     )
 
     port_specialist = Agent(
@@ -138,6 +143,8 @@ def build_maritime_compliance_crew(
         llm=llm,
         tools=tools,
         verbose=True,
+        max_iter=20,
+        max_rpm=3,
     )
 
     risk_officer = Agent(
@@ -147,6 +154,8 @@ def build_maritime_compliance_crew(
                   "and operational impacts of compliance failures.",
         llm=llm,
         verbose=True,
+        max_iter=15,
+        max_rpm=3,
     )
 
     report_writer = Agent(
@@ -156,6 +165,7 @@ def build_maritime_compliance_crew(
                   "to ship operators and management.",
         llm=llm,
         verbose=True,
+        max_rpm=3,
     )
 
     # ========== TASKS ==========

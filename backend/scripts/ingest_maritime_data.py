@@ -347,9 +347,6 @@ class MaritimeDataIngester:
 
         documents = create_documents_from_data(IMO_CONVENTIONS_DATA, "imo_conventions")
 
-        if self.kb.mock_mode:
-            logger.warning("Knowledge base in mock mode - documents not stored")
-            return len(documents)
 
         count = self.kb.add_documents("imo_conventions", documents)
         logger.info(f"Ingested {count} IMO convention documents")
@@ -361,9 +358,6 @@ class MaritimeDataIngester:
 
         documents = create_documents_from_data(PSC_REQUIREMENTS_DATA, "psc_requirements")
 
-        if self.kb.mock_mode:
-            logger.warning("Knowledge base in mock mode - documents not stored")
-            return len(documents)
 
         count = self.kb.add_documents("psc_requirements", documents)
         logger.info(f"Ingested {count} PSC requirement documents")
@@ -375,9 +369,6 @@ class MaritimeDataIngester:
 
         documents = create_documents_from_data(REGIONAL_REQUIREMENTS_DATA, "regional_requirements")
 
-        if self.kb.mock_mode:
-            logger.warning("Knowledge base in mock mode - documents not stored")
-            return len(documents)
 
         count = self.kb.add_documents("regional_requirements", documents)
         logger.info(f"Ingested {count} regional requirement documents")
@@ -395,9 +386,6 @@ class MaritimeDataIngester:
 
         documents = create_documents_from_data(data, collection_name)
 
-        if self.kb.mock_mode:
-            logger.warning("Knowledge base in mock mode - documents not stored")
-            return len(documents)
 
         count = self.kb.add_documents(collection_name, documents)
         logger.info(f"Ingested {count} documents from {json_path}")
