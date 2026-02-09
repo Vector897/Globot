@@ -129,6 +129,7 @@ interface AgentCoTPanelProps {
   executionSummary?: ExecutionSummary | null;
   awaitingConfirmation?: boolean;
   onConfirmDecision?: (action: string) => void;
+  selectedRoute?: { name: string; distance: number; estimatedTime: number; riskLevel: string; waypointNames: string[]; description: string } | null;
 }
 
 type TabType = "stream" | "debate" | "decision" | "execution";
@@ -148,6 +149,7 @@ export function AgentCoTPanel({
   executionSummary = null,
   awaitingConfirmation = false,
   onConfirmDecision,
+  selectedRoute = null,
 }: AgentCoTPanelProps) {
   const [activeTab, setActiveTab] = useState<TabType>("stream");
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -290,6 +292,22 @@ export function AgentCoTPanel({
                 </button>
               ))}
             </div>
+
+            {/* Active Route Context */}
+            {selectedRoute && (
+              <div className="mx-4 mt-3 mb-1 p-2.5 rounded-sm border border-[#1a2332] bg-[#0f1621]">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: selectedRoute.riskLevel === 'high' ? '#c94444' : selectedRoute.riskLevel === 'medium' ? '#e8a547' : '#5a9a7a' }} />
+                    <span className="text-[10px] text-white/80 font-medium">{selectedRoute.name}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-[10px] text-white/50">
+                    <span>{selectedRoute.distance.toLocaleString()} nm</span>
+                    <span>~{selectedRoute.estimatedTime}d</span>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Content */}
             <div

@@ -44,6 +44,7 @@ interface AgentWorkflowProps {
   marketSentinelLoading?: boolean;
   marketSentinelError?: string | null;
   onRunMarketSentinel?: () => void;
+  selectedRoute?: { name: string; distance: number; estimatedTime: number; riskLevel: string; waypointNames: string[]; description: string } | null;
 }
 
 export const AgentWorkflow: React.FC<AgentWorkflowProps> = ({ 
@@ -53,6 +54,7 @@ export const AgentWorkflow: React.FC<AgentWorkflowProps> = ({
   marketSentinelLoading,
   marketSentinelError,
   onRunMarketSentinel,
+  selectedRoute,
 }) => {
   const [agents, setAgents] = useState<AgentState[]>(INITIAL_AGENTS);
 
@@ -215,6 +217,24 @@ export const AgentWorkflow: React.FC<AgentWorkflowProps> = ({
           </button>
         )}
       </div>
+
+      {/* Active Route Context */}
+      {selectedRoute && (
+        <div className="mb-4 p-2.5 rounded-sm border border-[#1a2332] bg-[#0f1621]">
+          <div className="flex items-center gap-2 mb-1.5">
+            <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: selectedRoute.riskLevel === 'high' ? '#c94444' : selectedRoute.riskLevel === 'medium' ? '#e8a547' : '#5a9a7a' }} />
+            <span className="text-[10px] text-white/40 uppercase tracking-wider font-bold">Active Route</span>
+          </div>
+          <p className="text-xs text-white/80 font-medium mb-1">{selectedRoute.name}</p>
+          <div className="flex items-center gap-3 text-[10px] text-white/50">
+            <span>{selectedRoute.distance.toLocaleString()} nm</span>
+            <span>~{selectedRoute.estimatedTime}d</span>
+            <span className={`uppercase font-bold ${selectedRoute.riskLevel === 'high' ? 'text-[#c94444]' : selectedRoute.riskLevel === 'medium' ? 'text-[#e8a547]' : 'text-[#5a9a7a]'}`}>
+              {selectedRoute.riskLevel} risk
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* Signal Alert Banner */}
       {marketSentinelData?.signal_packet && (

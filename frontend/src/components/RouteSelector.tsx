@@ -1,7 +1,19 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Route } from '../utils/routeCalculator';
-import { Check, Clock, TrendingUp, MapPin, Navigation, ChevronLeft, ChevronRight, AlertTriangle, AlertCircle, ShieldCheck } from 'lucide-react';
+import {
+  Check,
+  Clock,
+  TrendingUp,
+  Navigation,
+  ChevronLeft,
+  ChevronRight,
+  AlertTriangle,
+  AlertCircle,
+  ShieldCheck,
+  Anchor,
+  MapPin,
+} from 'lucide-react';
 import { Tooltip, TooltipTrigger, TooltipContent } from './ui/tooltip';
 
 // Helper function for risk level icons (colorblind accessibility)
@@ -18,6 +30,15 @@ const getRiskIcon = (riskLevel: string) => {
   }
 };
 
+const getRiskColor = (riskLevel: string) => {
+  switch (riskLevel) {
+    case 'high': return '#c94444';
+    case 'medium': return '#e8a547';
+    case 'low': return '#5a9a7a';
+    default: return '#4a90e2';
+  }
+};
+
 interface RouteSelectorProps {
   routes: Route[];
   selectedRoute: Route | null;
@@ -25,328 +46,252 @@ interface RouteSelectorProps {
   isLoading?: boolean;
 }
 
-// Skeleton loader for route cards
-const RouteCardSkeleton = () => (
-  <div className="w-full p-3 rounded-sm border border-[#1a2332] bg-[#0a0e1a] animate-pulse">
-    <div className="flex items-start justify-between gap-2 mb-2.5">
-      <div className="flex items-center gap-2">
-        <div className="w-2 h-2 rounded-full bg-[#1a2332]" />
-        <div>
-          <div className="h-3 w-32 bg-[#1a2332] rounded mb-1" />
-          <div className="h-2 w-24 bg-[#1a2332]/60 rounded" />
-        </div>
-      </div>
-    </div>
-    <div className="mb-2.5 pb-2.5 border-b border-white/5">
-      <div className="h-2 w-16 bg-[#1a2332]/60 rounded mb-2" />
-      <div className="space-y-2">
-        <div className="h-2 w-20 bg-[#1a2332]/40 rounded" />
-        <div className="h-2 w-28 bg-[#1a2332]/40 rounded" />
-        <div className="h-2 w-24 bg-[#1a2332]/40 rounded" />
-      </div>
-    </div>
-    <div className="flex items-center gap-3">
-      <div className="h-3 w-16 bg-[#1a2332]/60 rounded" />
-      <div className="h-3 w-12 bg-[#1a2332]/60 rounded" />
-      <div className="ml-auto h-5 w-16 bg-[#1a2332] rounded" />
-    </div>
-  </div>
-);
-
 export function RouteSelector({ routes, selectedRoute, onRouteSelect, isLoading = false }: RouteSelectorProps) {
-  const [width, setWidth] = React.useState(360);
   const [isCollapsed, setIsCollapsed] = React.useState(false);
-  const isResizing = React.useRef(false);
 
-  // Resize Handlers
-  const handleMouseDown = React.useCallback(() => {
-    if (isCollapsed) return;
-    isResizing.current = true;
-    document.body.style.cursor = 'col-resize';
-    document.body.style.userSelect = 'none';
-  }, [isCollapsed]);
-
-  const handleMouseMove = React.useCallback((e: MouseEvent) => {
-    if (!isResizing.current) return;
-    const newWidth = e.clientX - 24; // 24px is left-6 offset (1.5rem)
-    setWidth(Math.min(600, Math.max(280, newWidth)));
-  }, []);
-
-  const handleMouseUp = React.useCallback(() => {
-    isResizing.current = false;
-    document.body.style.cursor = '';
-    document.body.style.userSelect = '';
-  }, []);
-
-  React.useEffect(() => {
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', handleMouseUp);
-    return () => {
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
-    };
-  }, [handleMouseMove, handleMouseUp]);
-
-  // Empty state component
+  // Empty state
   if (routes.length === 0 && !isLoading) {
     return (
-      <motion.div
-        className="absolute top-20 left-6 bg-[#0f1621]/98 border border-[#1a2332] rounded-r-sm z-20 p-6 w-80"
-        initial={{ opacity: 0, x: -20 }}
-        animate={{ opacity: 1, x: 0 }}
-        style={{ backdropFilter: 'blur(8px)' }}
+      <div
+        className="absolute top-4 left-4 z-20 bg-[#0a0e1a]/95 border border-[#1a2332] rounded-sm overflow-hidden"
+        style={{ backdropFilter: 'blur(12px)', width: 320 }}
       >
-        <div className="flex flex-col items-center text-center">
-          {/* Empty state illustration */}
-          <div className="w-16 h-16 mb-4 rounded-full bg-[#1a2332] flex items-center justify-center">
-            <Navigation className="w-8 h-8 text-[#4a90e2]/50" />
-          </div>
-          
-          <h3 className="text-sm font-semibold text-white/80 mb-2">
-            No Routes Available
-          </h3>
-          
-          <p className="text-xs text-white/50 mb-4 leading-relaxed">
-            Select an origin and destination port to calculate optimal shipping routes, or activate a crisis scenario to see rerouting options.
-          </p>
-          
-          {/* Action hints */}
-          <div className="w-full space-y-2">
-            <div className="flex items-center gap-2 text-[10px] text-white/40">
-              <div className="w-1.5 h-1.5 rounded-full bg-[#4a90e2]" />
-              <span>Click on ports to select origin/destination</span>
-            </div>
-            <div className="flex items-center gap-2 text-[10px] text-white/40">
-              <div className="w-1.5 h-1.5 rounded-full bg-[#c94444]" />
-              <span>Enable crisis scenarios to see alternate routes</span>
-            </div>
+        <div className="px-4 py-3 border-b border-[#1a2332] bg-gradient-to-r from-[#1a2332]/50 to-transparent">
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-[#4a90e2]" />
+            <span className="text-[10px] font-bold text-white/50 uppercase tracking-widest">
+              Route Analysis
+            </span>
           </div>
         </div>
-      </motion.div>
+        <div className="p-6 text-center">
+          <Navigation className="w-8 h-8 text-white/15 mx-auto mb-3" />
+          <p className="text-xs text-white/50 mb-1 font-medium">No Routes Available</p>
+          <p className="text-[10px] text-white/30 leading-relaxed">
+            Select origin and destination ports to calculate shipping corridors.
+          </p>
+        </div>
+      </div>
     );
   }
 
-  // Show all 4 routes
   const displayRoutes = routes.slice(0, 4);
 
   return (
     <motion.div
-      className="absolute top-20 left-6 bg-[#0f1621]/98 border border-[#1a2332] rounded-r-sm flex flex-col z-20"
+      className="absolute top-4 left-4 z-20 bg-[#0a0e1a]/95 border border-[#1a2332] rounded-sm overflow-hidden"
       initial={{ opacity: 0, x: -20 }}
-      animate={{ 
-        opacity: 1, 
+      animate={{
+        opacity: 1,
         x: 0,
-        width: isCollapsed ? 24 : width
+        width: isCollapsed ? 28 : 340,
       }}
-      transition={{ duration: 0.3 }}
-      style={{ 
-        backdropFilter: 'blur(8px)',
-        maxHeight: 'calc(100vh - 120px)'
-      }}
+      transition={{ duration: 0.25, ease: 'easeOut' }}
+      style={{ backdropFilter: 'blur(12px)', maxHeight: 'calc(100vh - 120px)' }}
     >
-      <style>{`
-        .route-scroll::-webkit-scrollbar {
-          width: 6px;
-        }
-        .route-scroll::-webkit-scrollbar-track {
-          background: transparent;
-        }
-        .route-scroll::-webkit-scrollbar-thumb {
-          background: #1a2332;
-          border-radius: 3px;
-        }
-        .route-scroll::-webkit-scrollbar-thumb:hover {
-          background: #4a90e2;
-        }
-      `}</style>
-
-      {/* Toggle Button with Tooltip */}
+      {/* Toggle Button */}
       <Tooltip>
         <TooltipTrigger asChild>
           <button
             onClick={() => setIsCollapsed(!isCollapsed)}
-            className="absolute -right-5 top-2 w-6 h-10 bg-[#0f1621] border border-l-0 border-[#1a2332] rounded-r-sm flex items-center justify-center text-white/40 hover:text-white hover:bg-[#1a2332] transition-colors z-30 focus:outline-none focus:ring-2 focus:ring-[#4a90e2]/50"
-            aria-label={isCollapsed ? "Expand route panel" : "Collapse route panel"}
+            className="absolute -right-0 top-0 bottom-0 w-6 bg-transparent hover:bg-[#1a2332]/80 flex items-center justify-center text-white/30 hover:text-white/70 transition-colors z-30 focus:outline-none"
+            aria-label={isCollapsed ? 'Expand route panel' : 'Collapse route panel'}
             aria-expanded={!isCollapsed}
           >
-            {isCollapsed ? <ChevronRight className="w-3 h-3" /> : <ChevronLeft className="w-3 h-3" />}
+            {isCollapsed ? (
+              <ChevronRight className="w-3 h-3" />
+            ) : (
+              <ChevronLeft className="w-3 h-3" />
+            )}
           </button>
         </TooltipTrigger>
         <TooltipContent side="right" className="bg-[#1a2332] text-white border-[#2a3342]">
-          {isCollapsed ? "Show routes" : "Hide routes"}
+          {isCollapsed ? 'Show routes' : 'Hide routes'}
         </TooltipContent>
       </Tooltip>
 
-      {/* Resize Handle - only active when not collapsed */}
-      {!isCollapsed && (
-        <div 
-          className="absolute top-0 bottom-0 -right-1 w-2 cursor-col-resize hover:bg-[#4a90e2]/50 transition-colors z-20 rounded-r-sm"
-          onMouseDown={handleMouseDown}
-        />
+      {/* Collapsed State */}
+      {isCollapsed && (
+        <div className="h-full flex flex-col items-center py-4 gap-3">
+          <Anchor className="w-3.5 h-3.5 text-white/40" />
+          <div className="[writing-mode:vertical-rl] rotate-180 text-[10px] font-bold text-white/40 tracking-widest uppercase">
+            Routes
+          </div>
+        </div>
       )}
 
-      {/* Content Container - Hide when collapsed */}
-      <div className={`flex flex-col min-h-0 transition-opacity duration-200 ${isCollapsed ? 'opacity-0 pointer-events-none' : 'opacity-100'}`} style={{ width: '100%' }}>
-        {!isCollapsed && (
-          <div className="p-4 flex flex-col min-h-0 w-full">
-            {/* Header */}
-            <div className="mb-3 pb-2 border-b border-[#1a2332] shrink-0">
-              <h3 className="text-xs font-semibold text-white/80 uppercase tracking-wider">
-                Available Routes
-              </h3>
-              <p className="text-[10px] text-white/40 mt-1">
-                {displayRoutes.length} AI-analyzed shipping corridors
-              </p>
+      {/* Content */}
+      <div className={`flex flex-col transition-opacity duration-200 ${isCollapsed ? 'opacity-0 pointer-events-none h-0' : 'opacity-100'}`}>
+        {/* Header */}
+        <div className="px-4 py-2.5 border-b border-[#1a2332] bg-gradient-to-r from-[#1a2332]/50 to-transparent">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-[#4a90e2]" />
+              <span className="text-[10px] font-bold text-white/50 uppercase tracking-widest">
+                Route Analysis
+              </span>
             </div>
+            <span className="text-[10px] text-white/30 font-mono">
+              {displayRoutes.length} corridors
+            </span>
+          </div>
+        </div>
 
-            {/* Route Options */}
-            <div className="space-y-2.5 overflow-y-auto route-scroll pr-1" style={{ maxHeight: '320px' }}>
-              {/* Loading skeleton state */}
-              {isLoading && (
-                <>
-                  <RouteCardSkeleton />
-                  <RouteCardSkeleton />
-                  <RouteCardSkeleton />
-                </>
-              )}
-              
-              {/* Actual route cards */}
-              {!isLoading && displayRoutes.map((route, index) => {
+        {/* Route List */}
+        <div className="overflow-y-auto" style={{ maxHeight: 'calc(100vh - 200px)' }}>
+          {/* Loading skeleton */}
+          {isLoading && (
+            <div className="p-3 space-y-2">
+              {[0, 1, 2].map(i => (
+                <div key={i} className="p-3 border border-[#1a2332] rounded-sm animate-pulse">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="w-2 h-2 rounded-full bg-[#1a2332]" />
+                    <div className="h-3 w-24 bg-[#1a2332] rounded" />
+                    <div className="ml-auto h-3 w-12 bg-[#1a2332] rounded" />
+                  </div>
+                  <div className="flex gap-4">
+                    <div className="h-2.5 w-16 bg-[#1a2332]/60 rounded" />
+                    <div className="h-2.5 w-12 bg-[#1a2332]/60 rounded" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Route Cards */}
+          {!isLoading && (
+            <div className="p-2 space-y-1">
+              {displayRoutes.map((route) => {
                 const isSelected = selectedRoute?.id === route.id;
-                
+                const riskColor = getRiskColor(route.riskLevel);
+
                 return (
                   <motion.button
                     key={route.id}
                     onClick={() => onRouteSelect(route)}
-                    className={`w-full text-left p-3 rounded-sm border transition-all ${
+                    className={`w-full text-left rounded-sm transition-all group ${
                       isSelected
-                        ? 'bg-[#4a90e2]/10 border-[#4a90e2] ring-1 ring-[#4a90e2]/50'
-                        : 'bg-[#0a0e1a] border-[#1a2332] hover:border-[#4a90e2]/50'
+                        ? 'bg-[#4a90e2]/8 border border-[#4a90e2]/40'
+                        : 'bg-transparent border border-transparent hover:bg-[#1a2332]/50 hover:border-[#1a2332]'
                     }`}
-                    whileHover={{ scale: isSelected ? 1 : 1.02 }}
                     whileTap={{ scale: 0.98 }}
                   >
-                    <div className="flex items-start justify-between gap-2 mb-2.5">
-                      <div className="flex items-center gap-2">
-                        {/* Risk indicator */}
+                    {/* Main Row */}
+                    <div className="px-3 py-2.5">
+                      <div className="flex items-center gap-2.5 mb-2">
+                        {/* Route color indicator */}
+                        <div className="relative flex-shrink-0">
+                          <div
+                            className="w-2.5 h-2.5 rounded-full"
+                            style={{
+                              backgroundColor: route.color,
+                              boxShadow: isSelected ? `0 0 8px ${route.color}60` : 'none',
+                            }}
+                          />
+                          {isSelected && (
+                            <motion.div
+                              className="absolute -inset-1 rounded-full border"
+                              style={{ borderColor: `${route.color}40` }}
+                              animate={{ scale: [1, 1.2, 1], opacity: [0.6, 0.2, 0.6] }}
+                              transition={{ duration: 2, repeat: Infinity }}
+                            />
+                          )}
+                        </div>
+
+                        {/* Route name */}
+                        <span className={`text-xs font-medium flex-1 ${isSelected ? 'text-white' : 'text-white/70'}`}>
+                          {route.name}
+                        </span>
+
+                        {/* Selection check */}
+                        {isSelected && (
+                          <div className="w-4 h-4 bg-[#4a90e2] rounded-full flex items-center justify-center flex-shrink-0">
+                            <Check className="w-2.5 h-2.5 text-white" strokeWidth={3} />
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Stats row */}
+                      <div className="flex items-center gap-3 ml-5">
+                        <div className="flex items-center gap-1">
+                          <TrendingUp className="w-3 h-3 text-white/30" strokeWidth={2} />
+                          <span className="text-[10px] text-white/50 font-mono">
+                            {route.distance.toLocaleString()} nm
+                          </span>
+                        </div>
+
+                        <div className="flex items-center gap-1">
+                          <Clock className="w-3 h-3 text-white/30" strokeWidth={2} />
+                          <span className="text-[10px] text-white/50 font-mono">
+                            ~{route.estimatedTime}d
+                          </span>
+                        </div>
+
+                        {/* Risk badge */}
                         <div
-                          className="w-2 h-2 rounded-full flex-shrink-0 mt-0.5"
+                          className="ml-auto flex items-center gap-1 px-1.5 py-0.5 rounded-sm text-[9px] font-bold uppercase tracking-wider"
                           style={{
-                            backgroundColor: route.color,
-                            boxShadow: `0 0 8px ${route.color}80`,
+                            backgroundColor: `${riskColor}15`,
+                            color: riskColor,
                           }}
-                        />
-                        <div>
-                          <div className="text-xs font-medium text-white/90">
-                            {route.name}
-                          </div>
-                          <div className="text-[10px] text-white/40 mt-0.5">
-                            {route.description}
-                          </div>
+                          role="status"
+                          aria-label={`Risk level: ${route.riskLevel}`}
+                        >
+                          {getRiskIcon(route.riskLevel)}
+                          <span>{route.riskLevel}</span>
                         </div>
                       </div>
 
-                      {/* Selected indicator */}
-                      {isSelected && (
-                        <div className="flex-shrink-0 w-4 h-4 bg-[#4a90e2] rounded-full flex items-center justify-center">
-                          <Check className="w-2.5 h-2.5 text-white" strokeWidth={3} />
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Waypoints - Visual Flow */}
-                    <div className="mb-2.5 pb-2.5 border-b border-white/5">
-                      <div className="flex items-center gap-1.5 mb-1.5">
-                        <Navigation className="w-3 h-3 text-white/40" strokeWidth={2} />
-                        <span className="text-[9px] text-white/40 font-medium uppercase tracking-wider">
-                          Route Path
-                        </span>
-                      </div>
-                      <div className="space-y-1">
-                        {route.waypointNames.map((waypoint, idx) => (
-                          <div key={idx} className="flex items-center gap-2">
-                            {/* Port icon and connector */}
-                            <div className="flex flex-col items-center">
-                              <MapPin 
-                                className="w-2.5 h-2.5 flex-shrink-0" 
-                                style={{ 
-                                  color: idx === 0 ? '#4a90e2' : idx === route.waypointNames.length - 1 ? '#c94444' : route.color 
-                                }}
-                                strokeWidth={2.5}
-                              />
-                              {idx < route.waypointNames.length - 1 && (
-                                <div 
-                                  className="w-[1px] h-2 my-0.5"
-                                  style={{ backgroundColor: `${route.color}40` }}
-                                />
-                              )}
+                      {/* Waypoints (compact, only shown when selected) */}
+                      <AnimatePresence>
+                        {isSelected && route.waypointNames.length > 0 && (
+                          <motion.div
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: 'auto', opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            transition={{ duration: 0.2 }}
+                            className="overflow-hidden"
+                          >
+                            <div className="mt-2 pt-2 border-t border-white/5 ml-5">
+                              <div className="flex items-center gap-1 flex-wrap">
+                                {route.waypointNames.map((wp, idx) => (
+                                  <React.Fragment key={idx}>
+                                    <span
+                                      className={`text-[9px] ${
+                                        idx === 0
+                                          ? 'text-[#4a90e2] font-medium'
+                                          : idx === route.waypointNames.length - 1
+                                          ? 'text-[#c94444] font-medium'
+                                          : 'text-white/40'
+                                      }`}
+                                    >
+                                      {wp}
+                                    </span>
+                                    {idx < route.waypointNames.length - 1 && (
+                                      <ChevronRight className="w-2.5 h-2.5 text-white/15 flex-shrink-0" />
+                                    )}
+                                  </React.Fragment>
+                                ))}
+                              </div>
                             </div>
-                            {/* Port name */}
-                            <span 
-                              className={`text-[10px] leading-tight ${
-                                idx === 0 || idx === route.waypointNames.length - 1 
-                                  ? 'text-white/70 font-medium' 
-                                  : 'text-white/50'
-                              }`}
-                            >
-                              {waypoint}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Route Stats */}
-                    <div className="flex items-center gap-3 flex-wrap">
-                      <div className="flex items-center gap-1.5">
-                        <TrendingUp className="w-3 h-3 text-white/40" strokeWidth={2} />
-                        <span className="text-[10px] text-white/60">
-                          {route.distance.toFixed(0)} km
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <Clock className="w-3 h-3 text-white/40" strokeWidth={2} />
-                        <span className="text-[10px] text-white/60">
-                          ~{route.estimatedTime}h
-                        </span>
-                      </div>
-                      <div
-                        className={`ml-auto flex items-center gap-1 px-2 py-1 rounded-sm text-[9px] font-medium uppercase tracking-wider ${
-                          route.riskLevel === 'high'
-                            ? 'bg-[#c94444]/20 text-[#c94444]'
-                            : route.riskLevel === 'medium'
-                            ? 'bg-[#e8a547]/20 text-[#e8a547]'
-                            : 'bg-[#5a9a7a]/20 text-[#5a9a7a]'
-                        }`}
-                        role="status"
-                        aria-label={`Risk level: ${route.riskLevel}`}
-                      >
-                        {getRiskIcon(route.riskLevel)}
-                        <span>{route.riskLevel}</span>
-                      </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
                     </div>
                   </motion.button>
                 );
               })}
             </div>
-
-            {/* Auto-select note */}
-            <div className="mt-3 pt-2 border-t border-[#1a2332] text-[10px] text-white/30 shrink-0">
-              AI automatically selects optimal route based on risk assessment
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Collapsed State Indicator (Vertical Text) */}
-      {isCollapsed && (
-        <div className="h-full flex flex-col items-center py-4 gap-4">
-          <Navigation className="w-4 h-4 text-white/60" />
-          <div className="[writing-mode:vertical-rl] rotate-180 text-xs font-medium text-white/60 tracking-wider">
-            ROUTES
-          </div>
+          )}
         </div>
-      )}
+
+        {/* Footer */}
+        <div className="px-4 py-2 border-t border-[#1a2332] bg-[#0a0e1a]">
+          <span className="text-[9px] text-white/25 leading-tight">
+            AI-optimized corridors · Risk assessed via real-time data
+          </span>
+        </div>
+      </div>
     </motion.div>
   );
 }
