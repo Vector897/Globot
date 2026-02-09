@@ -18,7 +18,7 @@ psycopg2-binary==2.9.11
 alembic==1.13.1
 
 # Vector Database
-chromadb==0.6.3
+chromadb>=1.1.0
 pysqlite3-binary==0.5.4
 
 # Data Validation
@@ -32,40 +32,31 @@ numpy>=1.26.0
 crewai==1.7.2
 openai==1.83.0
 litellm==1.80.11
-
-# AI/LLM - Google
 google-generativeai==0.8.6
-google-genai>=1.0.0
-langchain-google-genai>=2.0.0
-google-api-python-client>=2.0.0
-google-auth>=2.0.0
 
-# AI/LLM - LangChain
-langchain>=0.3.0
-langchain-core>=0.3.0
-langchain-community>=0.3.0
-langchain-chroma>=0.2.0
-langchain-text-splitters>=0.3.0
+# AI/LLM - LangChain (loosened for resolution)
+langchain
+langchain-core
+langchain-community
+langchain-chroma
+langchain-text-splitters
+langchain-google-genai
 
-# AI/LLM - Embeddings
-sentence-transformers>=3.0.0
-transformers>=4.40.0
-tokenizers>=0.20.0
+# AI/LLM - Embeddings & RAG
+sentence-transformers
+transformers
+tokenizers
 rank-bm25==0.2.2
 
-# gRPC (required by google-generativeai)
+# gRPC & Security
 grpcio>=1.60.0
 grpcio-status>=1.60.0
-
-# Security
 python-jose[cryptography]==3.3.0
 PyJWT>=2.9.0,<3.0.0
 python-dotenv==1.1.1
 
-# WebSockets
+# WebSockets & Processing
 websockets>=16.0
-
-# PDF/Document Processing
 pypdf>=5.0.0
 pdfplumber>=0.11.0
 python-docx>=1.0.0
