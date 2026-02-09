@@ -293,7 +293,7 @@ export function CompliancePanel({ originPort, destinationPort, activeMapRoute }:
       await documentAPI.uploadDocument({
         customer_id: customerId,
         vessel_id: vesselId,
-        document_type: "User Upload",
+        document_type: "other",
         title: uploadDescription.trim() || uploadFile.name,
         file: uploadFile,
       });
@@ -578,6 +578,7 @@ export function CompliancePanel({ originPort, destinationPort, activeMapRoute }:
             vesselValidDocuments={missingDocsResult.vessel_valid_documents}
             cargoValidDocuments={missingDocsResult.cargo_valid_documents}
             recommendations={missingDocsResult.recommendations}
+            dark
           />
         </div>
       )}

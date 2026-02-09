@@ -3,6 +3,8 @@ FastAPI主应用
 """
 from fastapi import FastAPI, Depends, HTTPException, BackgroundTasks, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import List, Optional, Dict, Any
@@ -10,6 +12,8 @@ from datetime import datetime
 import uvicorn
 import logging
 import hashlib
+import json
+import time
 from dotenv import load_dotenv
 
 # 加载环境变量
@@ -46,6 +50,64 @@ app = FastAPI(
     title="DJI Sales AI Assistant API",
     description="大疆无人机智能销售助理系统", version="0.1.0"
 )
+
+# region agent log
+def _debug_log(hypothesis_id: str, location: str, message: str, data: Dict[str, Any]) -> None:
+    try:
+        with open("/Users/timothylin/Globot/.cursor/debug.log", "a", encoding="utf-8") as f:
+            f.write(json.dumps({
+                "runId": "pre-fix",
+                "hypothesisId": hypothesis_id,
+                "location": location,
+                "message": message,
+                "data": data,
+                "timestamp": int(time.time() * 1000),
+            }, ensure_ascii=True) + "\n")
+    except Exception:
+        pass
+# endregion
+
+
+@app.middleware("http")
+async def maritime_upload_debug_middleware(request: Request, call_next):
+    if request.url.path == "/api/v2/maritime/documents/upload":
+        # region agent log
+        _debug_log(
+            "H4",
+            "backend/main.py:maritime_upload_debug_middleware:entry",
+            "upload request received at middleware",
+            {
+                "method": request.method,
+                "contentType": request.headers.get("content-type"),
+                "contentLength": request.headers.get("content-length"),
+            },
+        )
+        # endregion
+    response = await call_next(request)
+    if request.url.path == "/api/v2/maritime/documents/upload":
+        # region agent log
+        _debug_log(
+            "H5",
+            "backend/main.py:maritime_upload_debug_middleware:exit",
+            "upload request completed in middleware",
+            {"statusCode": response.status_code},
+        )
+        # endregion
+    return response
+
+
+@app.exception_handler(RequestValidationError)
+async def request_validation_exception_debug_handler(request: Request, exc: RequestValidationError):
+    if request.url.path == "/api/v2/maritime/documents/upload":
+        # region agent log
+        _debug_log(
+            "H1",
+            "backend/main.py:request_validation_exception_debug_handler",
+            "upload request validation failed",
+            {"errors": exc.errors()},
+        )
+        # endregion
+    return JSONResponse(status_code=422, content={"detail": exc.errors()})
 
 # 注册路由
 app.include_router(demo_router)

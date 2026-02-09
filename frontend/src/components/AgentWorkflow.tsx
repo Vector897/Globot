@@ -76,6 +76,7 @@ export const AgentWorkflow: React.FC<AgentWorkflowProps> = ({
   executionPhase = 'pending',
 }) => {
   const [agents, setAgents] = useState<AgentState[]>(INITIAL_AGENTS);
+  const [selectedAgentId, setSelectedAgentId] = useState<"market_sentinel" | "risk_hedger" | null>(null);
 
   // Helper to get Market Sentinel status based on real API data
   const getMarketSentinelStatus = (): { status: AgentStatus; lastAction: string } => {
@@ -228,9 +229,12 @@ export const AgentWorkflow: React.FC<AgentWorkflowProps> = ({
     if (!isLive) return;
 
     const t = currentTime % 60;
+    const isSentinelSelected = selectedAgentId === "market_sentinel";
+    const isHedgeSelected = selectedAgentId === "risk_hedger";
     
-    // Use real Market Sentinel data if available, otherwise fallback to simulation
-    const sentinelState = marketSentinelData || marketSentinelLoading 
+    const sentinelState = isSentinelSelected
+      ? (
+          marketSentinelData || marketSentinelLoading
       ? getMarketSentinelStatus()
       : {
           status: (t > 5 && t < 15 ? "thinking" : t >= 15 ? "alert" : "idle") as AgentStatus,
@@ -239,14 +243,20 @@ export const AgentWorkflow: React.FC<AgentWorkflowProps> = ({
             : t > 5 
               ? "Scanning Reuters, Bloomberg for supply chain disruptions..."
               : "Monitoring global news feeds for supply chain disruptions",
+              }
+        )
+      : {
+          status: "idle" as AgentStatus,
+          lastAction: "Select Market Sentinel to run",
         };
 
     // Derive other agent states — prefer real data, fallback to timer simulation
     const hasRealSignal = marketSentinelData?.signal_packet;
     const hasRealHedge = hedgeRiskData || hedgeRecommendation || hedgeLoading || hedgeError;
 
-    // Risk Hedger: real data if available
-    const hedgeState = hasRealHedge
+    const hedgeState = isHedgeSelected
+      ? (
+          hasRealHedge
       ? getHedgeStatus()
       : {
           status: (hasRealSignal
@@ -264,6 +274,11 @@ export const AgentWorkflow: React.FC<AgentWorkflowProps> = ({
                   : t > 15
                     ? "CRITICAL: Elevated risk detected in primary corridor"
                     : "Standing by for financial exposure analysis"),
+              }
+        )
+      : {
+          status: "idle" as AgentStatus,
+          lastAction: "Select Risk Hedger to run",
         };
 
     // Logistics: real data if execution phase or route is set
@@ -321,7 +336,7 @@ export const AgentWorkflow: React.FC<AgentWorkflowProps> = ({
       { id: "compliance", ...complianceState },
       { id: "debate", ...debateState },
     ]);
-  }, [currentTime, isLive, marketSentinelData, marketSentinelLoading, marketSentinelError, hedgeRiskData, hedgeRecommendation, hedgeLoading, hedgeError, isCotActive, debateCount, executionPhase, selectedRoute]);
+  }, [currentTime, isLive, marketSentinelData, marketSentinelLoading, marketSentinelError, hedgeRiskData, hedgeRecommendation, hedgeLoading, hedgeError, isCotActive, debateCount, executionPhase, selectedRoute, selectedAgentId]);
 
   const getAgentById = (id: string) => agents.find(a => a.id === id);
 
@@ -349,7 +364,12 @@ export const AgentWorkflow: React.FC<AgentWorkflowProps> = ({
         <div className="flex items-center gap-1.5">
           {onRunMarketSentinel && (
             <button
-              onClick={onRunMarketSentinel}
+              onClick={() => {
+                if (selectedAgentId !== "market_sentinel") {
+                  setSelectedAgentId("market_sentinel");
+                }
+                onRunMarketSentinel();
+              }}
               disabled={marketSentinelLoading}
               className="flex items-center gap-1.5 px-2.5 py-1 bg-[#4a90e2]/20 border border-[#4a90e2]/40 rounded-sm text-[10px] font-medium text-[#4a90e2] hover:bg-[#4a90e2]/30 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
             >
@@ -359,7 +379,12 @@ export const AgentWorkflow: React.FC<AgentWorkflowProps> = ({
           )}
           {onRunHedge && (
             <button
-              onClick={onRunHedge}
+              onClick={() => {
+                if (selectedAgentId !== "risk_hedger") {
+                  setSelectedAgentId("risk_hedger");
+                }
+                onRunHedge();
+              }}
               disabled={hedgeLoading}
               className="flex items-center gap-1.5 px-2.5 py-1 bg-[#10b981]/20 border border-[#10b981]/40 rounded-sm text-[10px] font-medium text-[#10b981] hover:bg-[#10b981]/30 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
             >
@@ -389,7 +414,7 @@ export const AgentWorkflow: React.FC<AgentWorkflowProps> = ({
       )}
 
       {/* Signal Alert Banner */}
-      {marketSentinelData?.signal_packet && (
+      {selectedAgentId === "market_sentinel" && marketSentinelData?.signal_packet && (
         <div 
           className="mb-4 p-3 rounded-sm border"
           style={{
@@ -425,7 +450,7 @@ export const AgentWorkflow: React.FC<AgentWorkflowProps> = ({
       )}
 
       {/* Hedge Data Banner */}
-      {hedgeRiskData && (
+      {selectedAgentId === "risk_hedger" && hedgeRiskData && (
         <div 
           className="mb-4 p-3 rounded-sm border"
           style={{
@@ -466,6 +491,11 @@ export const AgentWorkflow: React.FC<AgentWorkflowProps> = ({
       )}
 
       <div className="space-y-3 box-border">
+        <button
+          type="button"
+          onClick={() => setSelectedAgentId("market_sentinel")}
+          className={`w-full text-left rounded-sm transition-all ${selectedAgentId === "market_sentinel" ? "ring-1 ring-[#4a90e2]/70" : "ring-1 ring-transparent hover:ring-[#4a90e2]/30"}`}
+        >
         <AIAgentCard
           icon={AlertTriangle}
           name="Market Sentinel"
@@ -473,7 +503,13 @@ export const AgentWorkflow: React.FC<AgentWorkflowProps> = ({
           status={getAgentById("market_sentinel")?.status || "idle"}
           lastAction={getAgentById("market_sentinel")?.lastAction || ""}
         />
+        </button>
 
+        <button
+          type="button"
+          onClick={() => setSelectedAgentId("risk_hedger")}
+          className={`w-full text-left rounded-sm transition-all ${selectedAgentId === "risk_hedger" ? "ring-1 ring-[#10b981]/70" : "ring-1 ring-transparent hover:ring-[#10b981]/30"}`}
+        >
         <AIAgentCard
           icon={TrendingUp}
           name="Risk Hedger"
@@ -481,31 +517,8 @@ export const AgentWorkflow: React.FC<AgentWorkflowProps> = ({
           status={getAgentById("risk_hedger")?.status || "idle"}
           lastAction={getAgentById("risk_hedger")?.lastAction || ""}
         />
-
-        <AIAgentCard
-          icon={Package}
-          name="Logistics Orchestrator"
-          role="Route optimization"
-          status={getAgentById("logistics")?.status || "idle"}
-          lastAction={getAgentById("logistics")?.lastAction || ""}
-        />
-
-        <AIAgentCard
-          icon={Shield}
-          name="Compliance Manager"
-          role="Regulatory validation"
-          status={getAgentById("compliance")?.status || "idle"}
-          lastAction={getAgentById("compliance")?.lastAction || ""}
-        />
-
-        <AIAgentCard
-          icon={GitBranch}
-          name="Adversarial Debate"
-          role="Challenge assumptions"
-          status={getAgentById("debate")?.status || "idle"}
-          lastAction={getAgentById("debate")?.lastAction || ""}
-          isAdversarial
-        />
+        </button>
+       
       </div>
     </div>
   );

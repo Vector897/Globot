@@ -202,6 +202,15 @@ function findGraphRoutes(origin: GlobalPort, dest: GlobalPort, options?: RouteOp
     return edge.distance * (riskMultiplier > 1 ? riskMultiplier * 5 : 1);
   }, heuristic);
 
+  // "Economical" path — balance distance + moderate risk penalty
+  const econPath = runAStar(startNode.id, endNode.id, (edge) => {
+    let cost = edge.distance;
+    if (edge.risk > 1) {
+      cost *= (1 + (edge.risk - 1) * 2); // moderate risk penalty
+    }
+    return cost;
+  }, heuristic);
+
   const routes: Route[] = [];
 
   if (fastestPath) {
@@ -210,6 +219,10 @@ function findGraphRoutes(origin: GlobalPort, dest: GlobalPort, options?: RouteOp
 
   if (safePath && !arraysEqual(fastestPath, safePath)) {
     routes.push(buildRouteObject(safePath, origin, dest, 'route-safe', 'Safest Route', '#2ecc71'));
+  }
+
+  if (econPath && !arraysEqual(econPath, fastestPath) && !arraysEqual(econPath, safePath)) {
+    routes.push(buildRouteObject(econPath, origin, dest, 'route-economical', 'Economical Route', '#e8a547'));
   }
 
   return routes.length > 0 ? routes : null;

@@ -6,6 +6,7 @@ import { _GlobeView as GlobeView } from '@deck.gl/core';
 import { CollisionFilterExtension } from '@deck.gl/extensions';
 import { Route } from '../utils/routeCalculator';
 import { Ship } from '../utils/shipData';
+import { densifyPathMap } from '../utils/pathDensifier';
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from './ui/tooltip';
 
 // Initial View State for Globe
@@ -46,7 +47,7 @@ const COLOR_CRISIS_GLOW: [number, number, number, number] = [239, 68, 68, 40]; /
 const COLOR_LABEL_PRIMARY: [number, number, number, number] = [180, 185, 195, 255]; // Country labels
 const COLOR_GRATICULE: [number, number, number, number] = [60, 70, 85, 30]; // Very subtle grid
 
-const NUM_SHIPS = 500;
+const NUM_SHIPS = 4;
 
 interface GlobalMap3DProps {
   origin?: any;
@@ -169,20 +170,22 @@ export function GlobalMap3D({
        routes.forEach(r => {
            newPaths[r.id] = r.waypoints;
        });
-       setPaths(newPaths);
+       const densifiedPaths = densifyPathMap(newPaths);
+       setPaths(densifiedPaths);
        // Only spawn ships on the SELECTED route if one is selected, else on all
        if (selectedRouteFromParent) {
-           initShips({ [selectedRouteFromParent.id]: selectedRouteFromParent.waypoints });
+           initShips({ [selectedRouteFromParent.id]: densifiedPaths[selectedRouteFromParent.id] });
        } else {
-           initShips(newPaths);
+           initShips(densifiedPaths);
        }
     } else {
         // Default Mode: No routes from parent — show all global routes
         fetch('/data/paths.json')
           .then(resp => resp.json())
           .then(pathData => {
-            setPaths(pathData);
-            initShips(pathData);
+            const densifiedPaths = densifyPathMap(pathData);
+            setPaths(densifiedPaths);
+            initShips(densifiedPaths);
           });
     }
   }, [routes, selectedRouteFromParent]);

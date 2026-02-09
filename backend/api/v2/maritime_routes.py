@@ -4,6 +4,7 @@ Endpoints for vessel management, document upload, and compliance checking
 """
 import logging
 import json
+import time
 from typing import List, Optional
 from datetime import datetime
 
@@ -35,7 +36,7 @@ from models.compliance_report import (
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/v2/maritime", tags=["Maritime Compliance"])
+router = APIRouter(prefix="/api/v2/maritime", tags=["Maritime Compliance"])
 
 
 # ========== Request/Response Models ==========
@@ -686,6 +687,28 @@ async def upload_document(
     Upload a document (certificate, permit) with OCR processing.
     Supported formats: PDF, PNG, JPG
     """
+    # region agent log
+    try:
+        with open("/Users/timothylin/Globot/.cursor/debug.log", "a", encoding="utf-8") as f:
+            f.write(json.dumps({
+                "runId": "pre-fix",
+                "hypothesisId": "H5",
+                "location": "backend/api/v2/maritime_routes.py:upload_document:entry",
+                "message": "upload handler entered",
+                "data": {
+                    "customerId": customer_id,
+                    "vesselId": vessel_id,
+                    "documentType": document_type.value if hasattr(document_type, "value") else str(document_type),
+                    "titlePresent": bool(title),
+                    "filename": file.filename if file else None,
+                    "contentType": file.content_type if file else None,
+                },
+                "timestamp": int(time.time() * 1000),
+            }, ensure_ascii=True) + "\n")
+    except Exception:
+        pass
+    # endregion
+
     # Validate vessel exists
     vessel = db.query(Vessel).filter(Vessel.id == vessel_id).first()
     if not vessel:

@@ -6,6 +6,7 @@ import { CollisionFilterExtension } from '@deck.gl/extensions';
 import { MapView } from '@deck.gl/core';
 import { Route } from '../utils/routeCalculator';
 import { Ship } from '../utils/shipData';
+import { densifyPathMap } from '../utils/pathDensifier';
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from './ui/tooltip';
 
 // Initial View State for 2D Map (Mercator)
@@ -167,20 +168,22 @@ export function GlobalMap2D({
        routes.forEach(r => {
            newPaths[r.id] = r.waypoints;
        });
-       setPaths(newPaths);
+       const densifiedPaths = densifyPathMap(newPaths);
+       setPaths(densifiedPaths);
        // Only spawn ships on the SELECTED route if one is selected, else on all
        if (selectedRouteFromParent) {
-           initShips({ [selectedRouteFromParent.id]: selectedRouteFromParent.waypoints });
+           initShips({ [selectedRouteFromParent.id]: densifiedPaths[selectedRouteFromParent.id] });
        } else {
-           initShips(newPaths);
+           initShips(densifiedPaths);
        }
     } else {
         // Default Mode: No routes from parent — show all global routes
         fetch('/data/paths.json')
           .then(resp => resp.json())
           .then(pathData => {
-            setPaths(pathData);
-            initShips(pathData);
+            const densifiedPaths = densifyPathMap(pathData);
+            setPaths(densifiedPaths);
+            initShips(densifiedPaths);
           });
     }
   }, [routes, selectedRouteFromParent]);

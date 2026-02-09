@@ -22,9 +22,6 @@ import { RAGSourceCard } from './RAGSourceCard';
 const AGENT_CONFIG: Record<string, { icon: LucideIcon; color: string; name: string }> = {
   market_sentinel: { icon: AlertTriangle, color: '#c94444', name: 'Market Sentinel' },
   risk_hedger: { icon: TrendingUp, color: '#c9a227', name: 'Risk Hedger' },
-  logistics: { icon: Package, color: '#4a90e2', name: 'Logistics Orchestrator' },
-  compliance: { icon: Shield, color: '#5a9a7a', name: 'Compliance Manager' },
-  adversarial: { icon: GitBranch, color: '#9b59b6', name: 'Adversarial Debate' },
 };
 
 // 鍔ㄤ綔绫诲瀷缈昏瘧

@@ -120,6 +120,9 @@ const DEFAULT_REQUEST: MarketSentinelRequest = {
  * Run Market Sentinel analysis with default parameters
  */
 export async function runSimpleAnalysis(): Promise<MarketSentinelResponse> {
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/05d36e09-cd94-4f96-af55-b3946c76739f',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({runId:'pre-fix',hypothesisId:'H6',location:'frontend/src/services/marketSentinel.ts:runSimpleAnalysis',message:'runSimpleAnalysis invoked with DEFAULT_REQUEST',data:{defaultLanes:DEFAULT_REQUEST.watchlist.lanes,defaultEntities:DEFAULT_REQUEST.watchlist.entities},timestamp:Date.now()})}).catch(()=>{});
+  // #endregion
   return runAnalysis(DEFAULT_REQUEST);
 }
 
@@ -127,6 +130,9 @@ export async function runSimpleAnalysis(): Promise<MarketSentinelResponse> {
  * Run Market Sentinel analysis with custom parameters
  */
 export async function runAnalysis(params: MarketSentinelRequest): Promise<MarketSentinelResponse> {
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/05d36e09-cd94-4f96-af55-b3946c76739f',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({runId:'pre-fix',hypothesisId:'H7',location:'frontend/src/services/marketSentinel.ts:runAnalysis',message:'runAnalysis called',data:{lanes:params.watchlist?.lanes ?? [],entities:params.watchlist?.entities ?? [],time_window_hours:params.time_window_hours,sensitivity:params.sensitivity},timestamp:Date.now()})}).catch(()=>{});
+  // #endregion
   const response = await fetch(`${MARKET_SENTINEL_BASE_URL}/run`, {
     method: 'POST',
     headers: {
@@ -139,8 +145,13 @@ export async function runAnalysis(params: MarketSentinelRequest): Promise<Market
     const error = await response.json().catch(() => ({ detail: response.statusText }));
     throw new Error(error.detail || 'Market Sentinel analysis failed');
   }
-  
-  return response.json();
+
+  const parsed = await response.json();
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/05d36e09-cd94-4f96-af55-b3946c76739f',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({runId:'pre-fix',hypothesisId:'H8',location:'frontend/src/services/marketSentinel.ts:runAnalysis',message:'runAnalysis response parsed',data:{summary:parsed?.signal_packet?.summary ?? null,severity:parsed?.signal_packet?.severity ?? null,affectedLanes:parsed?.signal_packet?.affected_lanes ?? []},timestamp:Date.now()})}).catch(()=>{});
+  // #endregion
+
+  return parsed;
 }
 
 /**

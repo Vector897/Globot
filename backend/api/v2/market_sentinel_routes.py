@@ -4,6 +4,8 @@ from typing import List, Optional, Dict, Any
 from datetime import datetime, timedelta
 import uuid
 import random
+import json
+import urllib.request
 
 router = APIRouter(prefix="/api/v2/market-sentinel", tags=["market-sentinel"])
 
@@ -27,6 +29,28 @@ class MarketSentinelResponse(BaseModel):
     signal_packet: Dict[str, Any]
     raw_text: str
     request_echo: Dict[str, Any]
+
+
+def _agent_debug_log(hypothesis_id: str, location: str, message: str, data: Dict[str, Any]) -> None:
+    payload = {
+        "runId": "pre-fix",
+        "hypothesisId": hypothesis_id,
+        "location": location,
+        "message": message,
+        "data": data,
+        "timestamp": int(datetime.utcnow().timestamp() * 1000),
+    }
+    try:
+        req = urllib.request.Request(
+            "http://127.0.0.1:7242/ingest/05d36e09-cd94-4f96-af55-b3946c76739f",
+            data=json.dumps(payload).encode("utf-8"),
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        with urllib.request.urlopen(req, timeout=1):
+            pass
+    except Exception:
+        pass
 
 # --- Mock Logic ---
 
@@ -130,6 +154,20 @@ async def run_analysis(request: MarketSentinelRequest):
         first_lane = lanes[0]
         origin = first_lane.get("origin", "Unknown")
         destination = first_lane.get("destination", "Unknown")
+    # #region agent log
+    _agent_debug_log(
+        "H2",
+        "backend/api/v2/market_sentinel_routes.py:run_analysis",
+        "Received Market Sentinel request route context",
+        {
+            "lanesCount": len(lanes),
+            "firstLane": lanes[0] if lanes else None,
+            "origin": origin,
+            "destination": destination,
+            "entitiesCount": len(request.watchlist.get("entities", [])),
+        },
+    )
+    # #endregion
     
     # 1. Determine Scenario based on Route
     # Shanghai (CNSHA/CNNGB) -> Rotterdam (NLRTM/DEHAM) = Red Sea Crisis
@@ -137,6 +175,20 @@ async def run_analysis(request: MarketSentinelRequest):
     
     # Shanghai -> LA/Long Beach (USLAX/USLGB) = Congestion
     is_us_route = (origin in ["CNSHA", "CNNGB"]) and (destination in ["USLAX", "USLGB", "Los Angeles"])
+    # #region agent log
+    _agent_debug_log(
+        "H5",
+        "backend/api/v2/market_sentinel_routes.py:run_analysis",
+        "Route classification decision",
+        {
+            "origin": origin,
+            "destination": destination,
+            "is_europe_route": is_europe_route,
+            "is_us_route": is_us_route,
+            "selectedBranch": "europe" if is_europe_route else ("us" if is_us_route else "normal"),
+        },
+    )
+    # #endregion
     
     if is_europe_route:
         packet = generate_red_sea_crisis_packet(origin, destination)
