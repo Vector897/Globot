@@ -3,39 +3,42 @@ fastapi==0.115.6
 uvicorn[standard]==0.34.3
 starlette==0.41.3
 sse-starlette==3.0.3
-pydantic>=2.10.0
-pydantic-settings>=2.6.0
-anyio>=3.7.1,<5
-numpy>=1.26.0
-python-multipart==0.0.21
-
-# Database
-SQLAlchemy==2.0.23
-psycopg2-binary==2.9.11
-alembic==1.13.1
-
-# Data Validation
 pydantic==2.11.10
 pydantic-settings==2.10.1
 pydantic_core==2.33.2
+anyio>=3.7.1,<5
+numpy>=1.26.0
+python-multipart==0.0.21
+aiofiles==24.1.0
+
+# Database & Vector Store
+SQLAlchemy==2.0.23
+psycopg2-binary==2.9.11
+alembic==1.13.1
+chromadb==0.6.3
+pysqlite3-binary==0.5.4
 
 # AI/LLM
 crewai==1.7.2
 openai==1.83.0
 langchain-google-genai
 google-generativeai
+langchain==0.3.17
+langchain-community==0.3.16
+langchain-chroma==0.2.1
+langchain-text-splitters==0.3.5
+sentence-transformers==3.4.1
+rank-bm25==0.2.2
 
-# Security
+# Security & Auth
 python-jose[cryptography]==3.3.0
+PyJWT==2.10.1
 python-dotenv==1.1.1
-
-# WebSockets
 websockets==16.0
 
-# HTTP Client (used by crewai/openai)
+# Utilities
 httpx==0.28.1
 httpx-sse==0.4.3
 requests==2.32.5
-
-# Platform-specific
+pypdf==5.2.0
 uvloop==0.22.1; platform_system != "Windows"
