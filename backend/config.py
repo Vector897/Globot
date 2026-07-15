@@ -16,7 +16,7 @@ class Settings(BaseSettings):
     )
     
     # 数据库
-    database_url: str = "postgresql://user:password@localhost:5432/dji_sales_mvp"
+    database_url: str = "postgresql://user:password@localhost:5432/globot"
     
     # LLM选择: ollama 或 openai
     llm_provider: str = "ollama"
@@ -56,11 +56,11 @@ class Settings(BaseSettings):
     
     # Clerk配置
     clerk_issuer_url: Optional[str] = None
-    admin_whitelist: str = "thaumatext@gmail.com"
+    admin_whitelist: str = ""
 
     # 系统配置
     log_level: str = "INFO"
-    debug: bool = True
+    debug: bool = False
 
 
 @lru_cache()

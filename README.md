@@ -1,209 +1,168 @@
-# 🛡️ Globot Shield: Securing Global Lifelines (v2.2.20260201)
+# Globot
 
-> **Google Gemini 3 Hackathon Entry - Powered by Gemini 3.0**
+[![CI](https://github.com/Vector897/Globot/actions/workflows/ci.yml/badge.svg)](https://github.com/Vector897/Globot/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Python 3.11](https://img.shields.io/badge/Python-3.11-3776AB.svg)](backend/requirements.txt)
+[![React + Vite](https://img.shields.io/badge/Frontend-React%20%2B%20Vite-61DAFB.svg)](frontend/package.json)
 
-![Globot Dashboard](ai-sales-mvp/frontend/src/assets/dashboard_preview.png)
+**Open-source decision-support workspace for supply-chain disruption review.**
 
-## 📖 Project Overview
+Globot helps operators inspect disruption signals, compare route options, review compliance documents, and keep a **human accountable** for every consequential recommendation. It is built as a transparent research and demonstration system, not as an autonomous execution engine.
 
-**Globot** represents a paradigm shift in global trade risk management. Unlike traditional static dashboards, Globot is an **Agentic AI system** that proactively monitors, analyzes, and mitigates supply chain risks in real-time.
+> Default demos use mock and synthetic data. Outputs must be independently reviewed before they inform operational, compliance, or financial decisions.
 
-> 💡 *"We are not just optimizing spreadsheets; we are securing the lifelines of the global economy."*
+## Why this project matters
 
-### 🌍 Social Value (Potential Impact)
+Shipping and trade disruptions affect food, energy, medical supply, and manufacturing lead times. Existing tooling is often either a static dashboard or a black-box model. Globot sits in between:
 
-When Globot helps Maersk reroute quickly during the Red Sea crisis, it means:
-- 🌾 **Food supplies in Kenya** remain uninterrupted
-- 🔥 **Natural gas in Europe** lasts through the winter
-- 🏥 **Emergency hospital equipment** doesn't get stuck at ports
+- **Inspectable multi-agent activity** — market, logistics, compliance, and hedging perspectives in one review flow
+- **Human-in-the-loop by design** — recommendations cannot be treated as actions without explicit approval
+- **Reproducible open demo** — local fixtures and documented scenarios so contributors can verify behaviour
+- **Pluggable integrations** — mock sources today; production adapters tomorrow (AIS, news, insurance, market data)
 
-This version (**v2.1.20260131**) is a specially built **"High-Fidelity Mock"** version, designed to ensure absolute stability and high impact during demonstrations. It simulates a realistic "4:55 PM Crisis Scenario" (geopolitical crisis in the Strait of Hormuz) and fully demonstrates the **AI Chain-of-Thought** and **Human-in-the-Loop** decision-making processes powered by **Gemini 3.0**.
+The repository is an ecosystem building block for **responsible agentic logistics research**: a shared reference for HITL controls, provenance-friendly summaries, and maintenance-friendly FastAPI + React structure.
 
-## 🌟 Core Features (v2.1 Upgrade)
+## Table of contents
 
-### 1. 🧠 Visualized AI Chain-of-Thought
+- [Current status](#current-status)
+- [Core capabilities](#core-capabilities)
+- [Quick start](#quick-start)
+- [Configuration](#configuration)
+- [Architecture](#architecture)
+- [Roadmap](#roadmap)
+- [Contributing](#contributing)
+- [License](#license)
 
-- **Real-time Reasoning Display**: Shows the AI's thinking process line-by-line like a "typewriter," no longer a black box.
-- **Multi-Agent Debate**: Features an "Adversarial Debate" (Red Team vs. Blue Team) to ensure decision robustness.
-- **Citations & Provenance**: Every reasoning step is linked to specific documents in the RAG knowledge base or real-time news sources.
+## Current status
 
-### 2. 🤖 Multi-Agent Collaboration Engine (5-Agent Reasoning Engine)
+Globot is actively maintained as a public research / demonstration project.
 
-Features a team of 5 specialized AI Agents working in synergy:
+| Area | Status |
+| --- | --- |
+| Stars / forks | Tracked on GitHub; community PRs welcome |
+| License | [MIT](LICENSE) |
+| CI | Backend syntax + frontend production build on `main` and PRs |
+| Default data | Mock / synthetic — **not** live trading, sanctions, or execution |
+| Production readiness | **Not** production-ready without deployers adding auth, secrets, data licenses, and review controls |
 
-- **🔭 Market Sentinel**: Monitors geopolitical signals from Reuters/Bloomberg (Mock API supports multiple scenarios: Red Sea crisis, port congestion, etc.).
-- **🛡️ Financial Hedge Agent**: Real-time analysis of fuel prices, exchange rates, and freight risks. Provides intelligent hedging strategies (futures, options, forwards) for both normal and crisis risk management. Dynamically calculates fuel costs (+$180K) and freight fluctuations after rerouting.
-- **🚢 Logistics Orchestrator**: Re-plans routes to avoid conflict zones.
-- **📋 Compliance Manager**: Uses **Gemini 3.0's Extended Context Window** to analyze 500-page insurance policies and sanction lists.
-- **⚖️ Adversarial Debate**: Red-teams decisions to prevent hallucinations.
+## Core capabilities
 
-### 3. 🛰️ Visual Risk Intelligence (Satellite Image Analysis) - NEW
+1. **Scenario-driven demo** — reproducible disruption walkthrough with route selection and approval steps
+2. **Multi-perspective review** — market signals, route risk, compliance document experiments, hedging calculations
+3. **Map-centric visualisation** — Deck.gl-based logistics map for ports, routes, and risk highlighting
+4. **Human approval gate** — Approve / details / override path before a recommendation is treated as an action
+5. **Optional model providers** — Ollama by default; OpenAI and other providers remain opt-in via server-side env vars
 
-Leverages **Gemini 3.0 Vision** multimodal capabilities:
+## Quick start
 
-- **Satellite Image Analysis**: Real-time detection of port congestion, canal blockages, and container accumulation.
-- **Suez Canal Scenario**: Early warning for Ever Given-style events (6 hours before official announcements).
-- **Visual Evidence**: Embeds satellite screenshots into decisions as reasoning evidence.
+### Prerequisites
 
-### 4. 📄 Long Document Compliance Analysis - NEW
-
-Showcases Gemini's long context window advantages:
-
-- **500-page Maritime Insurance Policies**: Automated parsing and route compliance verification.
-- **OFAC/UN Sanction Lists**: Real-time checks (2M tokens context).
-- **MLC 2006 Convention**: Automated verification of crew certifications.
-
-### 5. �️ Aviation-Grade Logistics Holographic Map (Deck.gl)
-
-- **Routes & Ports**: Visualizes major global shipping lanes and core ports like Shanghai, Rotterdam, and Los Angeles.
-- **Interactive Vessels**: Click on yellow ship icons on the map to view detailed cargo manifests and voyage status.
-- **Dynamic Risk**: When a crisis occurs, affected areas highlight and pulse with alerts.
-
-### 6. 👨‍✈️ Human-in-the-Loop (HITL)
-
-- **Decision Confirmation**: After the AI makes a recommendation, a human must click **"Approve & Execute"** for it to take effect, reflecting responsible AI principles.
-- **Options**: Provides "Details" and "Override" (manual intervention) options.
-
-### 7. 🔒 Enterprise-Grade Authentication & Security
-
-- **Multi-channel Login**: Integrated with Clerk, supporting Google, Facebook, LinkedIn social logins, and Email/SMS verification.
-- **Admin Console**: A visual dashboard designed specifically for administrators to monitor global system KPIs.
-- **Security Whitelist**: Email whitelist system based on environment variables to ensure privacy and security of administrative permissions.
-
-### 🔌 Pluggable Data Sources
-
-The **Reasoning Engine** in this project is generic. Current use of Mock data is a Hackathon constraint. Production environments can directly integrate:
-
-| Data Source | Purpose | Replacement Method |
-| :--- | :--- | :--- |
-| Bloomberg Terminal API | Real-time market data, geopolitical events | Replace `mock_knowledge_base.py` |
-| MarineTraffic API | Real-time AIS vessel tracking | Replace `demo/cot_data.py` |
-| Sentinel-2 Satellite API | Port/Canal satellite imagery | Replace `visual_risk_service.py` |
-| Reuters/Bing News API | Real-time news feeds | Replace Market Sentinel data source |
-
-## 🎯 Target Customers
-
-| Industry | Example Companies | User Roles |
-| :--- | :--- | :--- |
-| Shipping & Logistics | Maersk, COSCO | NOC Manager, Control Tower Lead |
-| High-end Manufacturing | Tesla, Apple | Global Supply Manager, Resiliency PM |
-| Commodity Trading | Cargill, Glencore | Commodity Logistics Risk Lead |
-| Freight Forwarding | Flexport | Trade Compliance Officer |
-
-## 🚀 Quick Start
-
-### 1. Start Backend
-
-#### Prerequisites
 - Python 3.11
+- Node.js 20+
+- [pnpm](https://pnpm.io/) (lockfile: `frontend/pnpm-lock.yaml`)
 
-#### Installation Steps
+### Backend
 
 ```bash
-# Enter backend directory
 cd backend
+python -m venv .venv
+# Windows PowerShell
+.\.venv\Scripts\Activate.ps1
+# macOS/Linux
+# source .venv/bin/activate
 
-# Create virtual environment (recommended)
-python -m venv venv
-
-# Activate virtual environment
-# Windows PowerShell:
-.\venv\Scripts\Activate.ps1
-# Windows CMD:
- venv\Scripts\activate.bat
-# macOS/Linux:
- source venv/bin/activate
-
-# Install dependencies
 pip install -r requirements.txt
-
-# Configure environment variables
-# Create a .env file in the backend directory with core configurations:
-# CLERK_ISSUER_URL=...
-# ADMIN_WHITELIST=...
-
-# Start server
+cp .env.example .env   # Windows: copy .env.example .env
 python start_server.py
 ```
-_Backend runs at `http://localhost:8000`_
 
-### 2. Start Frontend
+API: `http://localhost:8000`
+
+### Frontend
 
 ```bash
 cd frontend
-npm install
-
-# Configure environment variables
-# Create a .env file in the frontend directory:
-# VITE_CLERK_PUBLISHABLE_KEY=...
-# VITE_ADMIN_WHITELIST=...
-
-npm run dev
+pnpm install --frozen-lockfile
+cp .env.example .env   # Windows: copy .env.example .env
+pnpm dev
 ```
-_Frontend runs at `http://localhost:5173`_
 
-### 3. Demo Path
+UI: `http://localhost:5173`
 
-1. Open browser and visit: `http://localhost:5173/pay`
-2. Click **"Watch Demo"** to go to the route selection page (`/port`).
-3. Confirm route (default Shanghai -> Rotterdam) and click **"Start Simulation"** to enter the demo (`/demo`).
-4. Observe the AI reasoning process and click confirm once the "Approve & Execute" button appears.
+### Demo path
 
-## 📂 Key File Descriptions
+1. Open `http://localhost:5173/pay`
+2. Choose **Watch Demo** → route selection (`/port`)
+3. Confirm a route (default Shanghai → Rotterdam) → **Start Simulation** (`/demo`)
+4. Follow the activity feed and use **Approve & Execute** only after human review
 
-- `updates/README.md`: Detailed demo operation steps (Must-read for new users).
-- `task.md`: Project development task list.
-- `updates/README.md`: Service startup and troubleshooting quick-reference table.
+## Configuration
 
-## 💰 Financial Hedging System (NEW)
+Copy example env files before local edits. Never commit API keys, Clerk credentials, personal allowlists, uploads, or production data. Defaults contain no credentials and enable no administrator.
 
-Globot now includes a comprehensive financial risk hedging system for managing:
+| File | Purpose |
+| --- | --- |
+| `backend/.env.example` | API, optional LLM providers, Clerk issuer, allowlist |
+| `frontend/.env.example` | Vite public Clerk key stub and API base URL |
 
-### Risk Categories
-- **Fuel Price Risk**: Hedge marine fuel price fluctuations using futures, options, and swaps.
-- **Currency Risk**: Lock in exchange rates via forward contracts and currency swaps.
-- **Freight Rate Risk**: Combined strategy of long-term charter contracts and spot market participation.
+`backend/data/` holds demonstration assets. Treat all outputs as illustrative unless you replace those sources with licensed, verified data and add operational controls.
 
-### Features
-- ✅ AI-powered risk assessment with Value at Risk (VaR) calculations
-- ✅ Automated hedging strategy recommendations (normal & crisis modes)
-- ✅ Real-time market data simulation
-- ✅ Crisis detection and emergency hedging protocols
-- ✅ Multi-instrument portfolio optimization
+## Architecture
 
-### API Endpoints
+```text
+React / Vite frontend (review UI + map)
+              |
+              v
+FastAPI backend
+   |        |         |
+ demo   risk/route   documents & hedging experiments
+   |
+ mock scenarios + local knowledge assets
+```
+
+Longer-term maintainer automation and opt-in OpenAI usage: [docs/OPENAI_API_PLAN.md](docs/OPENAI_API_PLAN.md).
+
+## Project health
+
+| Signal | Detail |
+| --- | --- |
+| License | OSI-approved MIT |
+| Community files | CONTRIBUTING, SECURITY, CODE_OF_CONDUCT, GOVERNANCE, SUPPORT |
+| Automation | GitHub Actions CI + Dependabot |
+| Maintainer | Primary maintainer [@Vector897](https://github.com/Vector897) with write access |
+| Codex plan | [docs/OPENAI_API_PLAN.md](docs/OPENAI_API_PLAN.md) |
+
+## Roadmap
+
+See [docs/ROADMAP.md](docs/ROADMAP.md). Near-term priorities:
+
+- Repeatable API and scenario tests in CI
+- Explicit, opt-in provider integrations with evaluation fixtures
+- Provenance and review records for every UI recommendation
+- Maintainer automation for issue triage, PR review summaries, release notes, and dependency hygiene
+
+## Contributing
+
+Please read [CONTRIBUTING.md](CONTRIBUTING.md) before opening an issue or PR.
+
+| Doc | Purpose |
+| --- | --- |
+| [SECURITY.md](SECURITY.md) | Vulnerability reporting |
+| [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) | Community standards |
+| [GOVERNANCE.md](GOVERNANCE.md) | Maintainer decision-making |
+| [SUPPORT.md](SUPPORT.md) | How to get help |
+| [CHANGELOG.md](CHANGELOG.md) | Notable changes |
+| [AGENTS.md](AGENTS.md) | Guidance for automated coding agents |
+
+Local checks before review:
+
 ```bash
-# Health check
-GET http://localhost:8000/api/hedge/health
-
-# Get market data
-GET http://localhost:8000/api/hedge/market-data
-
-# Assess risk exposure
-POST http://localhost:8000/api/hedge/assess-risk
-
-# Get hedging recommendations
-POST http://localhost:8000/api/hedge/recommend
-
-# Activate crisis hedging
-POST http://localhost:8000/api/hedge/crisis-activate
-
-# Generate executive report
-POST http://localhost:8000/api/hedge/report
+python -m compileall -q backend
+cd frontend && pnpm build
 ```
 
-### Documentation
-- **API Documentation**: `backend/docs/HEDGING_API.md`
-- **Strategy Guide**: `backend/docs/HEDGING_STRATEGY_GUIDE.md`
-- **Claude Skill**: `backend/claude_skill/financial_hedging/SKILL.md`
+## License
 
-### Quick Test
-```bash
-cd backend
-python test_hedging_system.py
-```
+Globot is released under the [MIT License](LICENSE).
 
----
-
-**Maintainer**: Vector897
-**License**: MIT
+**Primary maintainer:** [Vector897](https://github.com/Vector897)

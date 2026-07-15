@@ -1,5 +1,5 @@
 {
-  "name": "dji-sales-frontend",
+  "name": "globot-frontend",
   "private": true,
   "version": "1.0.0",
   "type": "module",
@@ -104,11 +104,6 @@
     },
     "react-dom": {
       "optional": true
-    }
-  },
-  "pnpm": {
-    "overrides": {
-      "vite": "6.3.5"
     }
   }
 }
