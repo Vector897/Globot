@@ -27,7 +27,7 @@ google-generativeai
 
 # Security
 python-jose[cryptography]==3.3.0
-python-dotenv==1.1.1
+python-dotenv==1.2.2
 
 # WebSockets
 websockets==16.0
