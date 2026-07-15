@@ -10,7 +10,7 @@ numpy>=1.26.0
 python-multipart==0.0.21
 
 # Database
-SQLAlchemy==2.0.23
+SQLAlchemy==2.0.51
 psycopg2-binary==2.9.11
 alembic==1.13.1
 
