@@ -1,0 +1,8 @@
+# pnpm 11+ settings (package.json "pnpm" field is ignored in v11)
+overrides:
+  vite: 6.3.5
+
+allowBuilds:
+  esbuild: true
+  '@clerk/shared': true
+  '@tailwindcss/oxide': true
