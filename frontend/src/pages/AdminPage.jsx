@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useUser, useAuth, SignOutButton } from '@clerk/clerk-react';
-import { DashboardCharts } from '../components/admin/DashboardCharts';
+import { DashboardCharts } from '../components/Admin/DashboardCharts';
 
 export function AdminPage() {
   const { user, isLoaded } = useUser();
