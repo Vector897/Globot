@@ -1,6 +1,6 @@
 # Core Web Framework
 fastapi==0.115.6
-uvicorn[standard]==0.34.3
+uvicorn[standard]==0.51.0
 starlette==0.41.3
 sse-starlette==3.0.3
 pydantic>=2.10.0
