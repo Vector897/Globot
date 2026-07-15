@@ -91,7 +91,7 @@
     "@types/react-simple-maps": "^3.0.6",
     "@vitejs/plugin-react": "^4.2.1",
     "tailwind-scrollbar": "^4.0.2",
-    "tailwindcss": "4.1.12",
+    "tailwindcss": "4.3.2",
     "vite": "^5.0.8"
   },
   "peerDependencies": {
