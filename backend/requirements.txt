@@ -6,7 +6,7 @@ sse-starlette==3.0.3
 pydantic>=2.10.0
 pydantic-settings>=2.6.0
 anyio>=3.7.1,<5
-numpy>=1.26.0
+numpy>=2.5.1
 python-multipart==0.0.21
 
 # Database
