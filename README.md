@@ -1,9 +1,20 @@
 # Globot
 
+[![Gemini 3 Hackathon — Grand Prize](https://img.shields.io/badge/Gemini%203%20Hackathon-%F0%9F%8F%86%20Grand%20Prize-F5A623.svg)](docs/assets/award-gemini3-grand-prize.png)
 [![CI](https://github.com/Vector897/Globot/actions/workflows/ci.yml/badge.svg)](https://github.com/Vector897/Globot/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.11](https://img.shields.io/badge/Python-3.11-3776AB.svg)](backend/requirements.txt)
 [![React + Vite](https://img.shields.io/badge/Frontend-React%20%2B%20Vite-61DAFB.svg)](frontend/package.json)
+
+<p align="center">
+  <a href="docs/assets/award-gemini3-grand-prize.png">
+    <img src="docs/assets/award-gemini3-grand-prize.png" alt="Globot — Grand Prize Winner, Gemini 3 Hackathon" width="860">
+  </a>
+  <br>
+  <em>🏆 <strong>Grand Prize Winner</strong> — Gemini 3 Hackathon</em>
+</p>
+
+> **Multi-Agents · 2M-token compliance analysis · satellite-imagery risk detection.** Globot turns sudden supply-chain chaos into confident decisions in 60 seconds.
 
 **Open-source decision-support workspace for supply-chain disruption review.**
 
